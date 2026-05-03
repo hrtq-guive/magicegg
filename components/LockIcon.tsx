@@ -1,5 +1,5 @@
 export interface LockIconProps {
-  phase: 'idle' | 'unlocking' | 'gone' | 'open' | 'locking';
+  phase: 'idle' | 'unlocking' | 'gone' | 'open' | 'locking' | 'shaking';
   onClick: () => void;
   size?: number;
   customColor?: string;

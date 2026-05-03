@@ -108,7 +108,7 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
           {/* The Lock */}
           {!showText && (
             <div className="absolute flex flex-col items-center justify-center">
-              <LockIcon phase={phase as any} onClick={handleLockClick} />
+              <LockIcon phase={phase} onClick={handleLockClick} />
               
               {/* Unlock Prompt */}
               {showPrompt && (
