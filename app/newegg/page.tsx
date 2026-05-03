@@ -346,8 +346,8 @@ export default function NewEggPage() {
 
           {/* Message (only in revealed) */}
           {flow === 'revealed' && (
-            <div className="absolute inset-x-0 bottom-48 md:bottom-auto md:top-1/2 md:pt-[170px] flex items-center justify-center pointer-events-none px-6">
-              <div className="flex flex-col items-center gap-10 animate-in fade-in duration-1000 pointer-events-auto">
+            <div className="absolute inset-x-0 bottom-32 md:bottom-auto md:top-1/2 md:pt-[170px] flex items-center justify-center pointer-events-none px-6">
+              <div className="flex flex-col items-center gap-6 animate-in fade-in duration-1000 pointer-events-auto">
                 <div className="text-center flex flex-col items-center gap-1">
                   <span className="text-xl md:text-3xl font-elegant text-black/80">Your egg is ready.</span>
                   <div className="mt-5 bg-black px-6 py-2.5 rounded-full flex items-center gap-5 animate-in zoom-in-95 duration-500 delay-300">
@@ -367,7 +367,7 @@ export default function NewEggPage() {
           )}
 
           {flow === 'revealed' && (
-            <div className="absolute bottom-12 left-0 right-0 flex justify-center z-10">
+            <div className="absolute bottom-6 left-0 right-0 flex justify-center z-10">
               <button 
                 onClick={handleReset} 
                 className="text-black/25 hover:text-black/60 transition-colors text-[10px] tracking-[0.4em] uppercase"
