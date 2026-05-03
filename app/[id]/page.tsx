@@ -10,7 +10,7 @@ interface Post {
   unlockType?: string;
   unlockValue?: string;
   unlockHint?: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export default function SingleLockPage({ params }: { params: { id: string } }) {

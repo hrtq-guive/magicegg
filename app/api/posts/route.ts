@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       unlockType: unlockType || '',
       unlockValue: unlockValue || '',
       unlockHint: unlockHint || '',
-      createdAt: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
     
     const { error } = await supabase
@@ -66,7 +66,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('posts')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     return NextResponse.json(data);
