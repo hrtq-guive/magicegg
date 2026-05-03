@@ -39,9 +39,9 @@ export async function POST(request: Request) {
     const newPost = {
       id: finalId,
       content,
-      unlockType: unlockType || '',
-      unlockValue: unlockValue || '',
-      unlockHint: unlockHint || '',
+      unlock_type: unlockType || '',
+      unlock_value: unlockValue || '',
+      unlock_hint: unlockHint || '',
       created_at: new Date().toISOString()
     };
     

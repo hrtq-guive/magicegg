@@ -7,9 +7,9 @@ import LockIcon from '@/components/LockIcon';
 interface Post {
   id: string;
   content: string;
-  unlockType?: string;
-  unlockValue?: string;
-  unlockHint?: string;
+  unlock_type?: string;
+  unlock_value?: string;
+  unlock_hint?: string;
   created_at: string;
 }
 
@@ -45,12 +45,12 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
   const handleLockClick = () => {
     if (phase !== 'idle' || !post) return;
 
-    if (post.unlockType === 'location') {
+    if (post.unlock_type === 'location') {
       verifyLocation();
       return;
     }
 
-    if (post.unlockType && post.unlockType !== '') {
+    if (post.unlock_type && post.unlock_type !== '') {
       setShowPrompt(true);
       return;
     }
@@ -85,7 +85,7 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        const target = post?.unlockValue?.split(',').map(s => parseFloat(s.trim()));
+        const target = post?.unlock_value?.split(',').map(s => parseFloat(s.trim()));
 
         if (!target || target.length !== 2 || isNaN(target[0]) || isNaN(target[1])) {
           setLocationError("Invalid target location stored in lock.");
@@ -136,12 +136,12 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
 
   const handleAttemptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!post?.unlockValue) {
+    if (!post?.unlock_value) {
       triggerUnlock();
       return;
     }
 
-    if (attemptValue.toLowerCase().trim() === post.unlockValue.toLowerCase().trim()) {
+    if (attemptValue.toLowerCase().trim() === post.unlock_value.toLowerCase().trim()) {
       triggerUnlock();
     } else {
       setShakePrompt(true);
@@ -185,10 +185,10 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
                   onSubmit={handleAttemptSubmit} 
                   className={`mt-8 flex flex-col items-center animate-in fade-in slide-in-from-top-4 duration-500 ${shakePrompt ? 'lock-shake' : ''}`}
                 >
-                  {post.unlockHint && (
-                    <div className="text-black/50 text-sm mb-4 font-elegant text-center">{post.unlockHint}</div>
+                  {post.unlock_hint && (
+                    <div className="text-black/50 text-sm mb-4 font-elegant text-center">{post.unlock_hint}</div>
                   )}
-                  {post.unlockType === 'location' ? (
+                  {post.unlock_type === 'location' ? (
                     <div className="flex flex-col items-center gap-4">
                       <button
                         onClick={(e) => { e.preventDefault(); verifyLocation(); }}
@@ -205,11 +205,11 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
                     </div>
                   ) : (
                     <input
-                      type={post.unlockType === 'password' ? 'password' : 'text'}
+                      type={post.unlock_type === 'password' ? 'password' : 'text'}
                       autoFocus
                       value={attemptValue}
                       onChange={(e) => setAttemptValue(e.target.value)}
-                      placeholder={post.unlockType === 'password' ? 'Enter password...' : 'Enter key...'}
+                      placeholder={post.unlock_type === 'password' ? 'Enter password...' : 'Enter key...'}
                       className="input-small text-center bg-transparent border-b border-black/20 focus:border-black/50 outline-none px-4 py-2 transition-colors"
                     />
                   )}
