@@ -346,7 +346,7 @@ export default function NewEggPage() {
 
           {/* Message (only in revealed) */}
           {flow === 'revealed' && (
-            <div className="absolute inset-x-0 bottom-12 md:bottom-auto md:top-1/2 md:pt-[170px] flex items-center justify-center pointer-events-none px-6">
+            <div className="absolute inset-x-0 bottom-48 md:bottom-auto md:top-1/2 md:pt-[170px] flex items-center justify-center pointer-events-none px-6">
               <div className="flex flex-col items-center gap-10 animate-in fade-in duration-1000 pointer-events-auto">
                 <div className="text-center flex flex-col items-center gap-1">
                   <span className="text-xl md:text-3xl font-elegant text-black/80">Your egg is ready.</span>

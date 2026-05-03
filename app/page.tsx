@@ -81,7 +81,7 @@ export default function LandingPage() {
 
       {/* Sequential Text below the center */}
       {showInstructions && (
-        <div className="absolute inset-x-0 bottom-32 md:bottom-auto md:top-[50%] md:pt-40 pointer-events-none px-6">
+        <div className="absolute inset-x-0 bottom-48 md:bottom-auto md:top-[50%] md:pt-40 pointer-events-none px-6">
           <div className="flex flex-col items-center text-center gap-2">
             {sentences.slice(0, visibleCount).map((s, idx) => (
               <p 
