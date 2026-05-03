@@ -1,58 +1,38 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-
-const dataFilePath = path.join(process.cwd(), 'data', 'posts.json');
-
-// Ensure the data directory and file exist
-async function ensureDataFile() {
-  try {
-    await fs.mkdir(path.join(process.cwd(), 'data'), { recursive: true });
-    try {
-      await fs.access(dataFilePath);
-    } catch {
-      await fs.writeFile(dataFilePath, '[]');
-    }
-  } catch (error) {
-    console.error('Error ensuring data file:', error);
-  }
-}
-
-export async function GET() {
-  await ensureDataFile();
-  try {
-    const data = await fs.readFile(dataFilePath, 'utf8');
-    return NextResponse.json(JSON.parse(data));
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to read data' }, { status: 500 });
-  }
-}
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
-  await ensureDataFile();
   try {
     const { content, unlockType, unlockValue, unlockHint, customId } = await request.json();
+    
     if (typeof content !== 'string') {
       return NextResponse.json({ error: 'Content must be a string' }, { status: 400 });
     }
 
-    const fileData = await fs.readFile(dataFilePath, 'utf8');
-    const posts = JSON.parse(fileData);
-    
     let finalId = customId ? customId.trim() : '';
     
     // Check for uniqueness if customId is provided
     if (finalId) {
-      const exists = posts.some((p: any) => p.id === finalId);
-      if (exists) {
+      const { data: existing } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('id', finalId)
+        .single();
+      
+      if (existing) {
         return NextResponse.json({ error: 'ID already exists' }, { status: 409 });
       }
     } else {
       // Generate a 6-character random alphanumeric ID
-      finalId = Math.random().toString(36).substring(2, 8);
-      // Ensure it doesn't collide (very unlikely but good practice)
-      while (posts.some((p: any) => p.id === finalId)) {
+      let isUnique = false;
+      while (!isUnique) {
         finalId = Math.random().toString(36).substring(2, 8);
+        const { data: existing } = await supabase
+          .from('posts')
+          .select('id')
+          .eq('id', finalId)
+          .single();
+        if (!existing) isUnique = true;
       }
     }
     
@@ -65,12 +45,33 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString()
     };
     
-    posts.push(newPost);
-    await fs.writeFile(dataFilePath, JSON.stringify(posts, null, 2));
+    const { error } = await supabase
+      .from('posts')
+      .insert([newPost]);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     
     return NextResponse.json(newPost, { status: 201 });
   } catch (error: any) {
     console.error('API Error in /api/posts:', error);
-    return NextResponse.json({ error: error.message || 'Failed to save data' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('API Error in GET /api/posts:', error);
+    return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
   }
 }

@@ -1,21 +1,26 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '@/lib/supabase';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'posts.json');
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const id = params.id;
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const data = await fs.readFile(dataFilePath, 'utf8');
-    const posts = JSON.parse(data);
-    const post = posts.find((p: any) => p.id === params.id);
-    
-    if (!post) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    const { data: post, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !post) {
+      return NextResponse.json({ error: 'Lock not found' }, { status: 404 });
     }
-    
+
     return NextResponse.json(post);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to read data' }, { status: 500 });
+  } catch (error: any) {
+    console.error(`API Error in GET /api/posts/${id}:`, error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
