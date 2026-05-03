@@ -12,12 +12,12 @@ export async function POST(request: Request) {
     const { data: egg, error: eggError } = await supabase.from('posts').select('unlock_value').eq('id', id).single();
     if (eggError || !egg) return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
 
-    const emails = egg.unlock_value.split(',').map((e: string) => e.trim().toLowerCase()).filter(e => e.includes('@'));
+    const emails = egg.unlock_value.split(',').map((e: string) => e.trim().toLowerCase()).filter((e: string) => e.includes('@'));
     const apiKey = process.env.RESEND_API_KEY;
     const resend = new Resend(apiKey);
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-    const results = await Promise.all(emails.map(async (email) => {
+    const results = await Promise.all(emails.map(async (email: string) => {
       const token = Math.random().toString(36).substring(2, 15);
       await supabase.from('egg_participants').upsert({
         post_id: id,

@@ -383,8 +383,8 @@ export default function NewEggPage() {
         <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center">
           <div className="flex items-center gap-5">
             <div className="flex gap-1.5">
-              <div className={`rounded-full transition-all duration-300 ${flow === 'content' ? 'w-4 h-1 bg-black/50' : 'w-1.5 h-1 bg-black/20'}`} />
-              <div className={`rounded-full transition-all duration-300 ${flow === 'params' ? 'w-4 h-1 bg-black/50' : 'w-1.5 h-1 bg-black/20'}`} />
+              <div className="rounded-full transition-all duration-300 w-4 h-1 bg-black/50" />
+              <div className="rounded-full transition-all duration-300 w-1.5 h-1 bg-black/20" />
             </div>
             <button
               onClick={() => { if (hasContent) setFlow('params'); }}

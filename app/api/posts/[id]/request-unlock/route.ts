@@ -25,14 +25,14 @@ export async function POST(
     const authorizedEmails = (egg.unlock_value || '')
       .split(',')
       .map((e: string) => e.trim().toLowerCase())
-      .filter(e => e.length > 0 && e.includes('@')); // Only valid-looking emails
+      .filter((e: string) => e.length > 0 && e.includes('@')); // Only valid-looking emails
     
     if (authorizedEmails.length === 0) {
       return NextResponse.json({ error: 'No valid authorized emails found for this egg.' }, { status: 400 });
     }
     
     // 3. Generate tokens and send
-    const results = await Promise.all(authorizedEmails.map(async (email) => {
+    const results = await Promise.all(authorizedEmails.map(async (email: string) => {
       try {
         // Use a simple random string instead of the crypto library to avoid environment issues
         const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
