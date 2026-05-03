@@ -126,23 +126,6 @@ function EggContent({ params }: { params: { id: string } }) {
   const handleEggClick = () => {
     if (phase !== 'idle' || !post) return;
 
-    // Simultaneous check
-    if (post.unlock_type === 'simultaneous') {
-      if (!allParticipantsReady) {
-        setShakePrompt(true);
-        setTimeout(() => setShakePrompt(false), 600);
-        return;
-      }
-      // If ready, allow opening
-      triggerUnlock();
-      return;
-    }
-
-    if (post.unlock_type === 'location') {
-      verifyLocation();
-      return;
-    }
-
     if (post.unlock_type && post.unlock_type !== '') {
       setShowPrompt(true);
       return;
@@ -304,7 +287,7 @@ function EggContent({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          {post.unlock_type === 'simultaneous' && !showText && phase === 'idle' && (
+          {post.unlock_type === 'simultaneous' && showPrompt && !showText && phase === 'idle' && (
             <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
               <div className="flex flex-col items-center gap-6 pointer-events-auto animate-in fade-in duration-500">
                 {!linkSent && !userEmail && (

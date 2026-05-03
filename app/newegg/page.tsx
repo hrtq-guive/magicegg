@@ -84,22 +84,23 @@ export default function NewEggPage() {
 
     try {
       // 0. Upload files if any
-      const uploadedFileUrls: string[] = [];
+      const uploadedFilePaths: string[] = [];
       for (const f of files) {
-        const fileName = `${Date.now()}-${f.file.name}`;
-        const { data, error } = await supabase.storage
-          .from('egg-contents')
-          .upload(fileName, f.file);
-        
-        if (error) {
-          console.error('File upload error:', error);
-          throw new Error(`Failed to upload ${f.file.name}: ${error.message}. Do you have an 'egg-contents' storage bucket?`);
-        } else if (data) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('egg-contents')
-            .getPublicUrl(data.path);
-          uploadedFileUrls.push(publicUrl);
+        const formData = new FormData();
+        formData.append('file', f.file);
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          throw new Error(`Failed to upload ${f.file.name}: ${err.error || 'Unknown error'}`);
         }
+
+        const { path } = await uploadRes.json();
+        uploadedFilePaths.push(path);
       }
 
       const res = await fetch('/api/posts', {
@@ -111,7 +112,7 @@ export default function NewEggPage() {
           unlockValue: unlockValue.trim(),
           unlockHint: unlockHint.trim(),
           customId: customId.trim(),
-          files: uploadedFileUrls,
+          files: uploadedFilePaths,
         }),
       });
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { Resend } from 'resend';
+import { sendMagicLink } from '@/lib/email';
 
 export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,9 +13,6 @@ export async function POST(request: Request) {
     if (eggError || !egg) return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
 
     const emails = egg.unlock_value.split(',').map((e: string) => e.trim().toLowerCase()).filter((e: string) => e.includes('@'));
-    const apiKey = process.env.RESEND_API_KEY;
-    const resend = new Resend(apiKey);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
     const results = await Promise.all(emails.map(async (email: string) => {
       const token = Math.random().toString(36).substring(2, 15);
@@ -27,14 +24,9 @@ export async function POST(request: Request) {
         last_active: new Date().toISOString()
       }, { onConflict: 'post_id,email' });
 
-      const { data, error } = await resend.emails.send({
-        from: 'Chaosbox <onboarding@resend.dev>', // Resend trial default
-        to: [email],
-        subject: 'Unlock your Chaosbox Egg',
-        html: `<p>Your magic link: <a href="${baseUrl}/api/verify?token=${token}&id=${id}">Click here to verify</a></p>`
-      });
+      const { success, error } = await sendMagicLink(email, id, token);
 
-      return { email, success: !error, error };
+      return { email, success, error };
     }));
 
     const failed = results.filter(r => !r.success);

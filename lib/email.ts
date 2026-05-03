@@ -4,12 +4,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendMagicLink(email: string, eggId: string, token: string) {
   // Use a reliable base URL. Fallback to localhost for local testing.
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://magiceggs.netlify.app';
   const magicLink = `${baseUrl}/api/verify?token=${token}&id=${eggId}`;
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Chaosbox <eggs@resend.dev>', // You should verify your domain in Resend for custom from address
+      from: 'magiceggs <onboarding@resend.dev>', // You should verify your domain in Resend for custom from address
       to: [email],
       subject: 'Unlock your Chaosbox Egg',
       html: `

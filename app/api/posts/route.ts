@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     
     // Check for uniqueness if customId is provided
     if (finalId) {
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseAdmin
         .from('posts')
         .select('id')
         .eq('id', finalId)
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
       let isUnique = false;
       while (!isUnique) {
         finalId = Math.random().toString(36).substring(2, 8);
-        const { data: existing } = await supabase
+        const { data: existing } = await supabaseAdmin
           .from('posts')
           .select('id')
           .eq('id', finalId)
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString()
     };
     
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('posts')
       .insert([newPost]);
 
