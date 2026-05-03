@@ -36,7 +36,7 @@ input, button, select, textarea {
 }
 
 .fade-in {
-  animation: fadeIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: fadeIn 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .fade-out {
