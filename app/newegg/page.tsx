@@ -190,7 +190,7 @@ export default function NewEggPage() {
   } as Record<string, { label: string; placeholder: string; inputType: string }>;
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#f0f0f4] text-[#111111] relative font-elegant fade-in">
+    <div className="h-[100dvh] w-full flex flex-col bg-[#f0f0f4] text-[#111111] relative font-elegant fade-in overflow-hidden">
 
       {/* ── Back arrow ── */}
       <div className="absolute top-6 left-6 md:top-9 md:left-9 z-10">
@@ -206,7 +206,7 @@ export default function NewEggPage() {
           STEP 1 — CONTENT
       ════════════════════════════════════ */}
       {flow === 'content' && (
-        <div className="flex-1 flex flex-col justify-start px-6 md:px-24 lg:px-32 pt-32 md:pt-48">
+        <div className="flex-1 flex flex-col justify-start px-6 md:px-24 lg:px-32 pt-20 md:pt-48 overflow-y-auto">
           <div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
 
             {/* File chips */}
@@ -257,7 +257,7 @@ export default function NewEggPage() {
           STEP 2 — PARAMETERS
       ════════════════════════════════════ */}
       {flow === 'params' && (
-        <div className="flex-1 flex flex-col justify-start px-6 md:px-24 lg:px-32 pt-24 md:pt-40 pb-12">
+        <div className="flex-1 flex flex-col justify-start px-6 md:px-24 lg:px-32 pt-20 md:pt-40 pb-32 overflow-y-auto">
           <div className="w-full max-w-xl mx-auto flex flex-col gap-12">
 
             {/* Unlock method chips */}

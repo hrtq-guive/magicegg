@@ -280,14 +280,14 @@ function EggContent({ params }: { params: { id: string } }) {
   const totalCount = post.unlock_type === 'simultaneous' ? post.unlock_value?.split(',').length || 0 : 0;
 
   return (
-    <div className="min-h-screen w-full flex relative overflow-hidden bg-[#f0f0f4] text-[#111111]">
+    <div className="h-[100dvh] w-full flex relative overflow-hidden bg-[#f0f0f4] text-[#111111]">
       <div className="absolute top-8 left-8 z-10">
         <a href="/" className="text-black/20 hover:text-black/50 transition-colors">
           <ArrowLeft size={20} />
         </a>
       </div>
       
-      <div className="flex-1 flex items-center justify-center p-6 md:p-24 relative">
+      <div className="flex-1 flex items-center justify-center p-6 md:p-24 relative overflow-y-auto">
         <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
           
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

@@ -66,7 +66,7 @@ export default function LandingPage() {
   const showInstructions = !isOpeningSequence;
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#f0f0f4] text-[#111111] font-elegant relative overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col bg-[#f0f0f4] text-[#111111] font-elegant relative overflow-hidden">
       
       {/* Centered Egg - Exact same spot as opening page */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
