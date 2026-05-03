@@ -32,8 +32,8 @@ export async function POST(request: Request) {
   await ensureDataFile();
   try {
     const { content, unlockType, unlockValue, unlockHint, customId } = await request.json();
-    if (!content || typeof content !== 'string') {
-      return NextResponse.json({ error: 'Invalid content' }, { status: 400 });
+    if (typeof content !== 'string') {
+      return NextResponse.json({ error: 'Content must be a string' }, { status: 400 });
     }
 
     const fileData = await fs.readFile(dataFilePath, 'utf8');
@@ -69,7 +69,8 @@ export async function POST(request: Request) {
     await fs.writeFile(dataFilePath, JSON.stringify(posts, null, 2));
     
     return NextResponse.json(newPost, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
+  } catch (error: any) {
+    console.error('API Error in /api/posts:', error);
+    return NextResponse.json({ error: error.message || 'Failed to save data' }, { status: 500 });
   }
 }

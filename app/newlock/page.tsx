@@ -33,6 +33,8 @@ export default function NewLockPage() {
   const [finalUrl, setFinalUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [lockPhase, setLockPhase] = useState<'open' | 'locking' | 'idle'>('open');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,9 +70,13 @@ export default function NewLockPage() {
   };
 
   const handleLock = async () => {
-    if (!hasContent) return;
+    if (!hasContent || isSubmitting) return;
     setIdError('');
+    setSubmitError('');
+    setIsSubmitting(true);
     
+    console.log('Starting lock creation...', { content, unlockType, unlockValue, customId });
+
     // Phase 1: Lock appears open in center
     setFlow('locking');
     setLockPhase('open');
@@ -89,16 +95,22 @@ export default function NewLockPage() {
       });
 
       if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown server error' }));
+        console.error('Lock creation failed:', res.status, errorData);
+
         if (res.status === 409) {
           setIdError('This link ID is already taken.');
           setFlow('params');
           setLockPhase('open');
+          setIsSubmitting(false);
           return;
         }
-        throw new Error('Failed');
+        
+        throw new Error(errorData.error || `Server returned ${res.status}`);
       }
 
       const data = await res.json();
+      console.log('Lock created successfully:', data);
       const id = data.id || customId.trim() || 'your-lock';
       setFinalUrl(`chaosbox.com/${id}`);
 
@@ -110,12 +122,16 @@ export default function NewLockPage() {
         setTimeout(() => {
           setFlow('revealed');
           setLockPhase('idle');
+          setIsSubmitting(false);
         }, 1000);
       }, 500);
 
-    } catch {
+    } catch (err: any) {
+      console.error('Catch block error:', err);
+      setSubmitError(err.message || 'Failed to create lock. Please try again.');
       setFlow('params');
       setLockPhase('open');
+      setIsSubmitting(false);
     }
   };
 
@@ -291,6 +307,7 @@ export default function NewLockPage() {
                 />
               </div>
               {idError && <span className="text-red-400 text-sm">{idError}</span>}
+              {submitError && <span className="text-red-400 text-sm text-center mt-2">{submitError}</span>}
             </div>
 
             {/* Centered Lock Button */}
