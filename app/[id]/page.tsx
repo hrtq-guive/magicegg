@@ -369,36 +369,47 @@ function EggContent({ params }: { params: { id: string } }) {
                 {post.content}
               </div>
               
-              {post.files && post.files.length > 0 && (
-                <div className="w-full flex flex-col gap-4 mt-8">
-                  <span className="text-[10px] tracking-[0.4em] uppercase text-black/30 text-center mb-2">Attachments</span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {post.files.map((url, i) => {
-                      const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i);
-                      const isPDF = url.toLowerCase().endsWith('.pdf');
-                      return (
-                        <div key={i} className="group relative bg-white/40 border border-black/5 rounded-2xl p-4 hover:bg-white/60 transition-all flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-black/40">
-                            {isImage ? (
-                              <img src={url} alt="" className="w-full h-full object-cover rounded-xl" />
-                            ) : isPDF ? (
-                              <FileText size={20} strokeWidth={1.5} />
-                            ) : (
-                              <Download size={20} strokeWidth={1.5} />
-                            )}
+              {/* Attachments Section */}
+              {(() => {
+                const attachmentList = Array.isArray(post.files) 
+                  ? post.files 
+                  : (typeof post.files === 'string' && (post.files as string).startsWith('[') 
+                      ? JSON.parse(post.files as string) 
+                      : []);
+                
+                if (attachmentList.length === 0) return null;
+
+                return (
+                  <div className="w-full flex flex-col gap-4 mt-8">
+                    <span className="text-[10px] tracking-[0.4em] uppercase text-black/30 text-center mb-2">Attachments</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {attachmentList.map((url: string, i: number) => {
+                        const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i);
+                        const isPDF = url.toLowerCase().endsWith('.pdf');
+                        return (
+                          <div key={i} className="group relative bg-white/40 border border-black/5 rounded-2xl p-4 hover:bg-white/60 transition-all flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-black/40">
+                              {isImage ? (
+                                <img src={url} alt="" className="w-full h-full object-cover rounded-xl" />
+                              ) : isPDF ? (
+                                <FileText size={20} strokeWidth={1.5} />
+                              ) : (
+                                <Download size={20} strokeWidth={1.5} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-black/60 truncate font-mono">file-{i + 1}</div>
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] tracking-widest uppercase text-black/30 hover:text-black/80 transition-colors">
+                                View / Download
+                              </a>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs text-black/60 truncate font-mono">file-{i + 1}</div>
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] tracking-widest uppercase text-black/30 hover:text-black/80 transition-colors">
-                              View / Download
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 

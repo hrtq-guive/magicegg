@@ -93,7 +93,7 @@ export default function NewEggPage() {
         
         if (error) {
           console.error('File upload error:', error);
-          // For now, we continue if one file fails, but we should probably inform user
+          throw new Error(`Failed to upload ${f.file.name}: ${error.message}. Do you have an 'egg-contents' storage bucket?`);
         } else if (data) {
           const { data: { publicUrl } } = supabase.storage
             .from('egg-contents')
