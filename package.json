@@ -1,5 +1,5 @@
 {
-  "name": "chaosbox-fortune",
+  "name": "eggbox",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,7 +14,8 @@
     "lucide-react": "^0.378.0",
     "next": "14.2.3",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "@types/node": "^20",

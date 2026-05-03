@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import LockIcon from '@/components/LockIcon';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, FileText, Download, Circle } from 'lucide-react';
+import WhiteEgg from '@/components/WhiteEgg';
+
+interface Participant {
+  email: string;
+  is_verified: boolean;
+  is_active: boolean;
+}
 
 interface Post {
   id: string;
@@ -10,10 +17,13 @@ interface Post {
   unlock_type?: string;
   unlock_value?: string;
   unlock_hint?: string;
+  files?: string[];
+  participants?: Participant[];
   created_at: string;
 }
 
-export default function SingleLockPage({ params }: { params: { id: string } }) {
+function EggContent({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams();
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -26,24 +36,107 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
 
-  useEffect(() => {
-    fetch(`/api/posts/${params.id}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Not found');
-        return res.json();
-      })
-      .then((data: Post) => {
-        setPost(data);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setError(true);
-        setIsLoading(false);
-      });
-  }, [params.id]);
+  // Simultaneous state
+  const [isRequestingLink, setIsRequestingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+  const [requestError, setRequestError] = useState('');
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [allParticipantsReady, setAllParticipantsReady] = useState(false);
+  
+  const pollInterval = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
 
-  const handleLockClick = () => {
+  const fetchPost = async () => {
+    try {
+      const res = await fetch(`/api/posts/${params.id}`);
+      if (!res.ok) throw new Error('Not found');
+      
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('Expected JSON but got:', text.substring(0, 100));
+        throw new Error('Server returned an invalid response (HTML). Check your API routes.');
+      }
+
+      const data: Post = await res.json();
+      setPost(data);
+      
+      // Check if all are ready
+      if (data.unlock_type === 'simultaneous' && data.participants && data.participants.length > 0) {
+        const required = data.unlock_value?.split(',').length || 0;
+        const currentReady = data.participants.filter(p => p.is_verified && p.is_active).length;
+        setAllParticipantsReady(currentReady === required && required > 0);
+      } else {
+        setAllParticipantsReady(false);
+      }
+      
+      return data;
+    } catch (err) {
+      setError(true);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPost();
+    
+    // 1. Check URL params for verified email
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setUserEmail(emailParam);
+      localStorage.setItem(`egg_${params.id}_email`, emailParam);
+    } else {
+      // 2. Fallback to localStorage
+      const saved = localStorage.getItem(`egg_${params.id}_email`);
+      if (saved) setUserEmail(saved);
+    }
+  }, [params.id, searchParams]);
+
+  // Polling for simultaneous
+  useEffect(() => {
+    if (post?.unlock_type === 'simultaneous' && !showText) {
+      pollInterval.current = setInterval(fetchPost, 3000);
+    } else {
+      if (pollInterval.current) clearInterval(pollInterval.current);
+    }
+    return () => { if (pollInterval.current) clearInterval(pollInterval.current); };
+  }, [post?.unlock_type, showText]);
+
+  // Heartbeat for simultaneous
+  useEffect(() => {
+    if (post?.unlock_type === 'simultaneous' && userEmail && !showText) {
+      const sendHeartbeat = () => {
+        fetch(`/api/posts/${params.id}/presence`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail })
+        }).catch(err => console.error('Heartbeat failed:', err));
+      };
+
+      sendHeartbeat(); // Initial
+      heartbeatInterval.current = setInterval(sendHeartbeat, 10000); // Every 10s
+    } else {
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+    }
+    return () => { if (heartbeatInterval.current) clearInterval(heartbeatInterval.current); };
+  }, [post?.unlock_type, userEmail, showText]);
+
+  const handleEggClick = () => {
     if (phase !== 'idle' || !post) return;
+
+    // Simultaneous check
+    if (post.unlock_type === 'simultaneous') {
+      if (!allParticipantsReady) {
+        setShakePrompt(true);
+        setTimeout(() => setShakePrompt(false), 600);
+        return;
+      }
+      // If ready, allow opening
+      triggerUnlock();
+      return;
+    }
 
     if (post.unlock_type === 'location') {
       verifyLocation();
@@ -56,21 +149,6 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
     }
 
     triggerUnlock();
-  };
-
-  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371e3; // metres
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // in metres
   };
 
   const verifyLocation = () => {
@@ -88,30 +166,35 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
         const target = post?.unlock_value?.split(',').map(s => parseFloat(s.trim()));
 
         if (!target || target.length !== 2 || isNaN(target[0]) || isNaN(target[1])) {
-          setLocationError("Invalid target location stored in lock.");
+          setLocationError("Invalid target location stored in egg.");
           setIsVerifyingLocation(false);
           return;
         }
 
-        const distance = getDistance(latitude, longitude, target[0], target[1]);
-        const threshold = 100; // 100 meters
+        const distance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+          const R = 6371e3;
+          const φ1 = lat1 * Math.PI/180;
+          const φ2 = lat2 * Math.PI/180;
+          const Δφ = (lat2-lat1) * Math.PI/180;
+          const Δλ = (lon2-lon1) * Math.PI/180;
+          const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          return R * c;
+        };
 
-        if (distance <= threshold) {
+        const dist = distance(latitude, longitude, target[0], target[1]);
+        const threshold = 100;
+
+        if (dist <= threshold) {
           triggerUnlock();
         } else {
           setShakePrompt(true);
-          setLocationError(`Too far away. (${Math.round(distance)}m from target)`);
+          setLocationError(`Too far away. (${Math.round(dist)}m from target)`);
           setTimeout(() => setShakePrompt(false), 600);
         }
         setIsVerifyingLocation(false);
       },
       (error) => {
-        console.error('Geolocation error:', error);
-        if (error.code === 1) {
-          setLocationError("Location access denied. Please enable GPS.");
-        } else {
-          setLocationError("Could not retrieve your location.");
-        }
         setIsVerifyingLocation(false);
         setShakePrompt(true);
         setTimeout(() => setShakePrompt(false), 600);
@@ -126,12 +209,44 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
 
     setTimeout(() => {
       setPhase('unlocking');
-
       setTimeout(() => {
         setPhase('gone');
-        setShowText(true);
-      }, 600);
-    }, 1200);
+        setTimeout(() => {
+          setShowText(true);
+        }, 875);
+      }, 300);
+    }, 600); 
+  };
+
+  const handleBulkRequestLink = async () => {
+    setIsRequestingLink(true);
+    setRequestError('');
+    
+    try {
+      const res = await fetch(`/api/unlock?id=${params.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}) // Bulk request
+      });
+      
+      const contentType = res.headers.get('content-type');
+      if (!res.ok) {
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to send magic links');
+        } else {
+          throw new Error('Server error (HTML). Check if the egg_participants table exists.');
+        }
+      }
+      
+      setLinkSent(true);
+    } catch (err: any) {
+      setRequestError(err.message);
+      setShakePrompt(true);
+      setTimeout(() => setShakePrompt(false), 600);
+    } finally {
+      setIsRequestingLink(false);
+    }
   };
 
   const handleAttemptSubmit = (e: React.FormEvent) => {
@@ -155,78 +270,148 @@ export default function SingleLockPage({ params }: { params: { id: string } }) {
   if (error || !post) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f0f0f4] text-[#111111] font-elegant text-2xl">
-        <div className="mb-4">Lock not found.</div>
+        <div className="mb-4">Egg not found.</div>
         <a href="/" className="text-lg text-black/40 hover:text-black/80 transition-colors">Go back</a>
       </div>
     );
   }
 
+  const activeCount = post.participants?.filter(p => p.is_verified && p.is_active).length || 0;
+  const totalCount = post.unlock_type === 'simultaneous' ? post.unlock_value?.split(',').length || 0 : 0;
+
   return (
     <div className="min-h-screen w-full flex relative overflow-hidden bg-[#f0f0f4] text-[#111111]">
-      {/* Top bar - Absolute */}
       <div className="absolute top-8 left-8 z-10">
         <a href="/" className="text-black/20 hover:text-black/50 transition-colors">
           <ArrowLeft size={20} />
         </a>
       </div>
       
-      {/* Main Content Area */}
-      <div className="flex-1 flex items-center justify-center p-12 md:p-24 relative">
-        <div className="relative flex items-center justify-center w-full max-w-4xl">
+      <div className="flex-1 flex items-center justify-center p-6 md:p-24 relative">
+        <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
           
-          {/* The Lock */}
-          {!showText && (
-            <div className="absolute flex flex-col items-center justify-center">
-              <LockIcon phase={phase} onClick={handleLockClick} />
-              
-              {/* Unlock Prompt */}
-              {showPrompt && (
-                <form 
-                  onSubmit={handleAttemptSubmit} 
-                  className={`mt-8 flex flex-col items-center animate-in fade-in slide-in-from-top-4 duration-500 ${shakePrompt ? 'lock-shake' : ''}`}
-                >
-                  {post.unlock_hint && (
-                    <div className="text-black/50 text-sm mb-4 font-elegant text-center">{post.unlock_hint}</div>
-                  )}
-                  {post.unlock_type === 'location' ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <button
-                        onClick={(e) => { e.preventDefault(); verifyLocation(); }}
-                        disabled={isVerifyingLocation}
-                        className={`px-8 py-3 rounded-full border border-black/15 text-sm tracking-widest uppercase transition-all duration-300 ${isVerifyingLocation ? 'opacity-50 cursor-wait' : 'hover:bg-black hover:text-white'}`}
-                      >
-                        {isVerifyingLocation ? 'Verifying...' : 'Verify Location'}
-                      </button>
-                      {locationError && (
-                        <div className="text-red-400 text-xs mt-2 text-center max-w-[200px] leading-relaxed uppercase tracking-widest">
-                          {locationError}
-                        </div>
-                      )}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className={`pointer-events-auto transition-transform duration-300 ${shakePrompt ? 'egg-shake' : ''}`}>
+              <WhiteEgg 
+                phase={
+                  phase === 'shaking' ? 'shaking' : 
+                  phase === 'unlocking' ? 'opening' : 
+                  phase === 'gone' ? 'gone' : 
+                  'idle'
+                } 
+                onClick={handleEggClick} 
+              />
+            </div>
+          </div>
+
+          {post.unlock_type === 'simultaneous' && !showText && phase === 'idle' && (
+            <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
+              <div className="flex flex-col items-center gap-6 pointer-events-auto animate-in fade-in duration-500">
+                {!linkSent && !userEmail && (
+                  <button
+                    onClick={handleBulkRequestLink}
+                    disabled={isRequestingLink}
+                    className="px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isRequestingLink ? 'Sending Keys...' : 'Receive Key'}
+                  </button>
+                )}
+                
+                {(linkSent || userEmail) && (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-black/60 text-[10px] tracking-[0.2em] uppercase">
+                        {allParticipantsReady ? 'Everyone is here. Click the egg.' : 'Waiting for participants…'}
+                      </span>
+                      <div className="flex items-center gap-3 mt-2">
+                        {post.participants?.map((p, i) => (
+                          <div key={i} className="flex items-center gap-1.5" title={p.email}>
+                            <Circle size={8} fill={p.is_active ? '#22c55e' : '#ef4444'} className={p.is_active ? 'text-green-500' : 'text-red-500'} />
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-black/25 text-[10px] mt-2 font-mono">{activeCount} / {totalCount} ACTIVE</span>
                     </div>
-                  ) : (
-                    <input
-                      type={post.unlock_type === 'password' ? 'password' : 'text'}
-                      autoFocus
-                      value={attemptValue}
-                      onChange={(e) => setAttemptValue(e.target.value)}
-                      placeholder={post.unlock_type === 'password' ? 'Enter password...' : 'Enter key...'}
-                      className="input-small text-center bg-transparent border-b border-black/20 focus:border-black/50 outline-none px-4 py-2 transition-colors"
-                    />
-                  )}
-                </form>
-              )}
+                      {!userEmail && (
+                        <span className="text-black/30 text-[9px] uppercase tracking-widest mt-2 animate-pulse">Check your inbox</span>
+                      )}
+                  </div>
+                )}
+                {requestError && <span className="text-red-400 text-xs mt-2">{requestError}</span>}
+              </div>
             </div>
           )}
 
-          {/* The Text */}
+          {showPrompt && !showText && post.unlock_type !== 'simultaneous' && (
+            <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
+              <form 
+                onSubmit={handleAttemptSubmit} 
+                className={`flex flex-col items-center pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500 ${shakePrompt ? 'egg-shake' : ''}`}
+              >
+                {post.unlock_hint && (
+                  <div className="text-black/50 text-sm mb-4 font-elegant text-center">{post.unlock_hint}</div>
+                )}
+                <input
+                  type={post.unlock_type === 'password' ? 'password' : 'text'}
+                  autoFocus
+                  value={attemptValue}
+                  onChange={(e) => setAttemptValue(e.target.value)}
+                  placeholder={post.unlock_type === 'password' ? 'Enter password...' : 'Enter key...'}
+                  className="input-small text-center bg-transparent border-b border-black/20 focus:border-black/50 outline-none px-4 py-2 transition-colors"
+                />
+              </form>
+            </div>
+          )}
+
           {showText && (
-            <div className="text-center text-3xl md:text-5xl font-elegant tracking-wide leading-relaxed animate-in fade-in duration-500">
-              {post.content}
+            <div className="flex flex-col items-center gap-12 animate-in fade-in duration-1000 max-w-2xl px-6">
+              <div className="text-center text-3xl md:text-5xl font-elegant tracking-wide leading-relaxed">
+                {post.content}
+              </div>
+              
+              {post.files && post.files.length > 0 && (
+                <div className="w-full flex flex-col gap-4 mt-8">
+                  <span className="text-[10px] tracking-[0.4em] uppercase text-black/30 text-center mb-2">Attachments</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {post.files.map((url, i) => {
+                      const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i);
+                      const isPDF = url.toLowerCase().endsWith('.pdf');
+                      return (
+                        <div key={i} className="group relative bg-white/40 border border-black/5 rounded-2xl p-4 hover:bg-white/60 transition-all flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-black/40">
+                            {isImage ? (
+                              <img src={url} alt="" className="w-full h-full object-cover rounded-xl" />
+                            ) : isPDF ? (
+                              <FileText size={20} strokeWidth={1.5} />
+                            ) : (
+                              <Download size={20} strokeWidth={1.5} />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-black/60 truncate font-mono">file-{i + 1}</div>
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] tracking-widest uppercase text-black/30 hover:text-black/80 transition-colors">
+                              View / Download
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SingleEggPage(props: any) {
+  return (
+    <Suspense fallback={<div className="min-h-screen w-full bg-[#f0f0f4]" />}>
+      <EggContent {...props} />
+    </Suspense>
   );
 }

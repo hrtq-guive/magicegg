@@ -36,7 +36,7 @@ input, button, select, textarea {
 }
 
 .fade-in {
-  animation: fadeIn 1.5s ease-in forwards;
+  animation: fadeIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .fade-out {
@@ -44,8 +44,8 @@ input, button, select, textarea {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; filter: blur(30px) brightness(1.2); }
+  to { opacity: 1; filter: blur(0) brightness(1); }
 }
 
 @keyframes fadeOut {
@@ -106,6 +106,19 @@ input, button, select, textarea {
   transform-origin: bottom center;
 }
 
+.egg-hover-jiggle {
+  animation: pecking 1.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes pecking {
+  0%, 15%, 35%, 55%, 75%, 95%, 100% { transform: scale(1) rotate(0deg) translate(0, 0); }
+  10% { transform: scale(calc(1 + var(--jiggle-intensity, 1) * 0.01)) rotate(calc(var(--jiggle-intensity, 1) * 1deg)) translate(calc(var(--jiggle-intensity, 1) * 0.5px), -1px); }
+  30% { transform: scale(calc(1 + var(--jiggle-intensity, 1) * 0.02)) rotate(calc(var(--jiggle-intensity, 1) * -1.5deg)) translate(calc(var(--jiggle-intensity, 1) * -1px), -2px); }
+  50% { transform: scale(calc(1 + var(--jiggle-intensity, 1) * 0.015)) rotate(calc(var(--jiggle-intensity, 1) * 2deg)) translate(calc(var(--jiggle-intensity, 1) * 1px), -1.5px); }
+  70% { transform: scale(calc(1 + var(--jiggle-intensity, 1) * 0.025)) rotate(calc(var(--jiggle-intensity, 1) * -1deg)) translate(calc(var(--jiggle-intensity, 1) * -0.5px), -3px); }
+}
+
 @keyframes organicHatch {
   0% { transform: rotate(0deg) scale(1); }
   20% { transform: rotate(1deg) scale(1.005); }
@@ -152,6 +165,25 @@ input, button, select, textarea {
   display: none;
 }
 
+.egg-magical-out {
+  animation: magicalOut 3.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes magicalOut {
+  0% { 
+    opacity: 1; 
+    filter: brightness(1) blur(0); 
+  }
+  30% {
+    opacity: 0.8;
+    filter: brightness(2) blur(10px);
+  }
+  100% { 
+    opacity: 0; 
+    filter: brightness(5) blur(40px); 
+  }
+}
+
 /* ── Content textarea (step 1) ── */
 .input-content-area {
   width: 100%;
@@ -166,6 +198,12 @@ input, button, select, textarea {
   overflow: hidden;
   min-height: 3rem;
   caret-color: #111111;
+}
+
+@media (max-width: 640px) {
+  .input-content-area {
+    font-size: 2.25rem;
+  }
 }
 
 .input-content-area::placeholder {
@@ -208,6 +246,13 @@ input, button, select, textarea {
   border-color: #111111;
   color: #f0f0f4;
   transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); /* Snappy selection */
+}
+
+@media (max-width: 640px) {
+  .method-chip {
+    padding: 0.6rem 1.25rem;
+    font-size: 0.85rem;
+  }
 }
 
 .method-chip--active:hover {
@@ -269,6 +314,12 @@ input, button, select, textarea {
 
 .params-input::placeholder {
   color: rgba(17, 17, 17, 0.18);
+}
+
+@media (max-width: 640px) {
+  .params-input, .params-select {
+    font-size: 1.4rem;
+  }
 }
 
 .params-select {

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
-    const { content, unlockType, unlockValue, unlockHint, customId } = await request.json();
+    const { content, unlockType, unlockValue, unlockHint, customId, files } = await request.json();
     
     if (typeof content !== 'string') {
       return NextResponse.json({ error: 'Content must be a string' }, { status: 400 });
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
       unlock_type: unlockType || '',
       unlock_value: unlockValue || '',
       unlock_hint: unlockHint || '',
+      files: files || [],
       created_at: new Date().toISOString()
     };
     

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fortune Box",
-  description: "A magical box of your fortunes and links.",
+  title: "EggBox",
+  description: "Put something inside. Decide how it will open. Send it.",
 };
 
 export default function RootLayout({

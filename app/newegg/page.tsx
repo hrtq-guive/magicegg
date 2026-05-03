@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Paperclip, X, ArrowLeft, Copy, Share2, Check } from 'lucide-react';
-import LockIcon from '@/components/LockIcon';
+import { Paperclip, X, ArrowLeft, Copy, Share2, Check, ArrowRight } from 'lucide-react';
+import WhiteEgg from '@/components/WhiteEgg';
+import { supabase } from '@/lib/supabase';
 
 type FilePreview = {
   file: File;
-  type: 'image' | 'video' | 'audio';
+  type: 'image' | 'video' | 'audio' | 'pdf';
   url: string;
 };
 
@@ -18,21 +19,20 @@ const UNLOCK_METHODS = [
   { value: 'time', label: 'Time' },
   { value: 'location', label: 'Location' },
   { value: 'simultaneous', label: 'Simultaneous' },
-  { value: 'link', label: 'Link' },
 ];
 
-export default function NewLockPage() {
+export default function NewEggPage() {
   const [flow, setFlow] = useState<FlowState>('content');
   const [content, setContent] = useState('');
   const [files, setFiles] = useState<FilePreview[]>([]);
-  const [unlockType, setUnlockType] = useState('');
+  const [unlockType, setUnlockType] = useState<string | null>(null);
   const [unlockValue, setUnlockValue] = useState('');
   const [unlockHint, setUnlockHint] = useState('');
   const [customId, setCustomId] = useState('');
   const [idError, setIdError] = useState('');
   const [finalUrl, setFinalUrl] = useState('');
   const [copied, setCopied] = useState(false);
-  const [lockPhase, setLockPhase] = useState<'open' | 'locking' | 'idle'>('open');
+  const [eggPhase, setEggPhase] = useState<'idle' | 'opening' | 'shaking'>('opening');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
@@ -40,10 +40,11 @@ export default function NewLockPage() {
 
   const hasContent = content.trim().length > 0 || files.length > 0;
 
-  const getFileType = (file: File): 'image' | 'video' | 'audio' | null => {
+  const getFileType = (file: File): 'image' | 'video' | 'audio' | 'pdf' | null => {
     if (file.type.startsWith('image/')) return 'image';
     if (file.type.startsWith('video/')) return 'video';
     if (file.type.startsWith('audio/')) return 'audio';
+    if (file.type === 'application/pdf') return 'pdf';
     return null;
   };
 
@@ -69,19 +70,38 @@ export default function NewLockPage() {
     });
   };
 
-  const handleLock = async () => {
+  const handleEgg = async () => {
     if (!hasContent || isSubmitting) return;
     setIdError('');
     setSubmitError('');
     setIsSubmitting(true);
     
-    console.log('Starting lock creation...', { content, unlockType, unlockValue, customId });
+    console.log('Starting egg creation...', { content, unlockType, unlockValue, customId });
 
-    // Phase 1: Lock appears open in center
+    // Phase 1: Egg appears open in center
     setFlow('locking');
-    setLockPhase('open');
+    setEggPhase('opening');
 
     try {
+      // 0. Upload files if any
+      const uploadedFileUrls: string[] = [];
+      for (const f of files) {
+        const fileName = `${Date.now()}-${f.file.name}`;
+        const { data, error } = await supabase.storage
+          .from('egg-contents')
+          .upload(fileName, f.file);
+        
+        if (error) {
+          console.error('File upload error:', error);
+          // For now, we continue if one file fails, but we should probably inform user
+        } else if (data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('egg-contents')
+            .getPublicUrl(data.path);
+          uploadedFileUrls.push(publicUrl);
+        }
+      }
+
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,6 +111,7 @@ export default function NewLockPage() {
           unlockValue: unlockValue.trim(),
           unlockHint: unlockHint.trim(),
           customId: customId.trim(),
+          files: uploadedFileUrls,
         }),
       });
 
@@ -101,7 +122,7 @@ export default function NewLockPage() {
         if (res.status === 409) {
           setIdError('This link ID is already taken.');
           setFlow('params');
-          setLockPhase('open');
+          setEggPhase('opening');
           setIsSubmitting(false);
           return;
         }
@@ -110,27 +131,32 @@ export default function NewLockPage() {
       }
 
       const data = await res.json();
-      console.log('Lock created successfully:', data);
-      const id = data.id || customId.trim() || 'your-lock';
-      setFinalUrl(`chaosbox.com/${id}`);
+      const id = data.id || customId.trim() || 'your-egg';
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'eggbox.netlify.app';
+      setFinalUrl(`${origin.replace('https://', '').replace('http://', '')}/${id}`);
 
       // Phase 2: Wait briefly, then snap shut
       setTimeout(() => {
-        setLockPhase('locking');
+        setEggPhase('idle');
         
-        // Phase 3: Wait for lock animation to settle, then reveal content
+        // Phase 3: Wait a moment, then shake to seal
         setTimeout(() => {
-          setFlow('revealed');
-          setLockPhase('idle');
-          setIsSubmitting(false);
-        }, 1000);
-      }, 500);
+          setEggPhase('shaking');
+          
+          // Phase 4: Wait for animation to settle, then reveal content
+          setTimeout(() => {
+            setFlow('revealed');
+            setEggPhase('idle');
+            setIsSubmitting(false);
+          }, 1200);
+        }, 300);
+      }, 100);
 
     } catch (err: any) {
       console.error('Catch block error:', err);
-      setSubmitError(err.message || 'Failed to create lock. Please try again.');
+      setSubmitError(err.message || 'Failed to create egg. Please try again.');
       setFlow('params');
-      setLockPhase('open');
+      setEggPhase('opening');
       setIsSubmitting(false);
     }
   };
@@ -146,14 +172,14 @@ export default function NewLockPage() {
     setFlow('content');
     setContent('');
     setFiles([]);
-    setUnlockType('');
+    setUnlockType(null);
     setUnlockValue('');
     setUnlockHint('');
     setCustomId('');
     setIdError('');
     setFinalUrl('');
     setCopied(false);
-    setLockPhase('open');
+    setEggPhase('opening');
   };
 
   const unlockMethodMeta = {
@@ -161,11 +187,10 @@ export default function NewLockPage() {
     time: { label: 'Unlock after', placeholder: '', inputType: 'datetime-local' },
     location: { label: 'Location', placeholder: '48.8566, 2.3522', inputType: 'text' },
     simultaneous: { label: 'People (emails)', placeholder: 'alice@mail.com, bob@mail.com', inputType: 'text' },
-    link: { label: 'Link key', placeholder: 'secret-path', inputType: 'text' },
   } as Record<string, { label: string; placeholder: string; inputType: string }>;
 
   return (
-    <div className="h-screen w-full flex flex-col bg-[#f0f0f4] text-[#111111] overflow-hidden relative font-elegant">
+    <div className="min-h-screen w-full flex flex-col bg-[#f0f0f4] text-[#111111] relative font-elegant fade-in">
 
       {/* ── Back arrow ── */}
       <div className="absolute top-6 left-6 md:top-9 md:left-9 z-10">
@@ -173,26 +198,15 @@ export default function NewLockPage() {
           <button onClick={() => setFlow('content')} className="text-black/25 hover:text-black/60 transition-colors">
             <ArrowLeft size={20} strokeWidth={1.5} />
           </button>
-        ) : flow === 'content' ? (
-          <a href="/" className="text-black/25 hover:text-black/60 transition-colors">
-            <ArrowLeft size={20} strokeWidth={1.5} />
-          </a>
         ) : null}
       </div>
 
-      {/* ── Step dots ── */}
-      {(flow === 'content' || flow === 'params') && (
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-          <div className={`rounded-full transition-all duration-300 ${flow === 'content' ? 'w-4 h-1.5 bg-black/50' : 'w-1.5 h-1.5 bg-black/20'}`} />
-          <div className={`rounded-full transition-all duration-300 ${flow === 'params' ? 'w-4 h-1.5 bg-black/50' : 'w-1.5 h-1.5 bg-black/20'}`} />
-        </div>
-      )}
 
       {/* ════════════════════════════════════
           STEP 1 — CONTENT
       ════════════════════════════════════ */}
       {flow === 'content' && (
-        <div className="flex-1 flex flex-col justify-center px-8 md:px-24 lg:px-32 animate-in slide-in-from-bottom-1 duration-150">
+        <div className="flex-1 flex flex-col justify-start px-6 md:px-24 lg:px-32 pt-32 md:pt-48">
           <div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
 
             {/* File chips */}
@@ -202,7 +216,7 @@ export default function NewLockPage() {
                   <div key={i} className="file-preview-chip">
                     {f.type === 'image' && <img src={f.url} alt="" className="file-preview-thumb" />}
                     {f.type === 'video' && <video src={f.url} className="file-preview-thumb" />}
-                    {f.type === 'audio' && <div className="file-preview-audio">♪</div>}
+                    {f.type === 'pdf' && <div className="file-preview-audio">PDF</div>}
                     <span className="file-preview-name">{f.file.name}</span>
                     <button onClick={() => removeFile(i)} className="file-preview-remove"><X size={13} /></button>
                   </div>
@@ -234,7 +248,7 @@ export default function NewLockPage() {
             >
               <Paperclip size={18} strokeWidth={1.5} />
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple onChange={handleFileSelect} className="hidden" />
+            <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*,.pdf" multiple onChange={handleFileSelect} className="hidden" />
           </div>
         </div>
       )}
@@ -243,7 +257,7 @@ export default function NewLockPage() {
           STEP 2 — PARAMETERS
       ════════════════════════════════════ */}
       {flow === 'params' && (
-        <div className="flex-1 flex flex-col justify-center px-8 md:px-24 lg:px-32 animate-in slide-in-from-bottom-1 duration-150">
+        <div className="flex-1 flex flex-col justify-start px-6 md:px-24 lg:px-32 pt-24 md:pt-40 pb-12">
           <div className="w-full max-w-xl mx-auto flex flex-col gap-12">
 
             {/* Unlock method chips */}
@@ -267,15 +281,15 @@ export default function NewLockPage() {
             </div>
 
             {/* Extra fields — always rendered, CSS transition controls visibility */}
-            <div className={`method-fields-expand ${unlockType !== '' ? 'method-fields-expand--open' : ''}`}>
+            <div className={`method-fields-expand ${unlockType !== null && unlockType !== '' ? 'method-fields-expand--open' : ''}`}>
               <div className="flex flex-col gap-4">
-                <span className="params-label">{unlockMethodMeta[unlockType]?.label ?? ''}</span>
+                <span className="params-label">{unlockMethodMeta[unlockType ?? '']?.label ?? ''}</span>
                 <input
                   key={unlockType}
-                  type={unlockMethodMeta[unlockType]?.inputType ?? 'text'}
+                  type={unlockMethodMeta[unlockType ?? '']?.inputType ?? 'text'}
                   value={unlockValue}
                   onChange={(e) => setUnlockValue(e.target.value)}
-                  placeholder={unlockMethodMeta[unlockType]?.placeholder ?? ''}
+                  placeholder={unlockMethodMeta[unlockType ?? '']?.placeholder ?? ''}
                   className="params-input"
                   style={{ outline: 'none' }}
                 />
@@ -297,7 +311,9 @@ export default function NewLockPage() {
             <div className="flex flex-col gap-4">
               <span className="params-label">Custom URL <span className="opacity-40 normal-case tracking-normal font-normal text-sm">— optional</span></span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-black/25 text-2xl leading-none select-none">chaosbox.com/</span>
+                <span className="text-black/25 text-2xl leading-none select-none">
+                  {typeof window !== 'undefined' ? window.location.host + '/' : 'eggbox.netlify.app/'}
+                </span>
                 <input
                   type="text"
                   value={customId}
@@ -310,12 +326,7 @@ export default function NewLockPage() {
               {submitError && <span className="text-red-400 text-sm text-center mt-2">{submitError}</span>}
             </div>
 
-            {/* Centered Lock Button */}
-            <div className="flex justify-center mt-4">
-              <button onClick={handleLock} disabled={!hasContent} className="transition-transform duration-300 hover:scale-105">
-                <LockIcon phase={lockPhase} onClick={() => {}} size={0.35} />
-              </button>
-            </div>
+            {/* Content area is now top-aligned, no more central egg here */}
           </div>
         </div>
       )}
@@ -324,60 +335,83 @@ export default function NewLockPage() {
           LOCKING & REVEALED — Shared Center State
       ════════════════════════════════════ */}
       {(flow === 'locking' || flow === 'revealed') && (
-        <div className="flex-1 flex flex-col items-center pt-[25vh] md:pt-[30vh] px-6 md:px-24 animate-in duration-150">
+        <div className="flex-1 relative flex items-center justify-center p-6 md:p-24 overflow-hidden">
           
-          {/* Steady Lock */}
-          <div className="animate-in zoom-in-95 duration-200 mb-20">
-            <LockIcon phase={lockPhase} onClick={() => {}} size={1.4} />
+          {/* Steady Egg */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="animate-in zoom-in-95 duration-200 pointer-events-auto">
+              <WhiteEgg phase={eggPhase} onClick={() => {}} size={1} />
+            </div>
           </div>
 
           {/* Message (only in revealed) */}
           {flow === 'revealed' && (
-            <div className="flex flex-col items-center gap-10 animate-in fade-in slide-in-from-top-2 duration-700 delay-200">
-              <div className="text-center">
-                <span className="text-3xl md:text-5xl font-elegant text-black/80 tracking-tight select-all cursor-text">
-                  {finalUrl}
-                </span>
+            <div className="absolute inset-x-0 bottom-12 md:bottom-auto md:top-1/2 md:pt-[170px] flex items-center justify-center pointer-events-none px-6">
+              <div className="flex flex-col items-center gap-10 animate-in fade-in duration-1000 pointer-events-auto">
+                <div className="text-center flex flex-col items-center gap-1">
+                  <span className="text-xl md:text-3xl font-elegant text-black/80">Your egg is ready.</span>
+                  <div className="mt-5 bg-black px-6 py-2.5 rounded-full flex items-center gap-5 animate-in zoom-in-95 duration-500 delay-300">
+                    <span className="text-sm md:text-lg font-elegant text-white/90 select-all cursor-text tracking-wide">
+                      {finalUrl}
+                    </span>
+                    <button 
+                      onClick={handleCopy} 
+                      className="text-white hover:text-white/80 transition-colors p-1 active:scale-90"
+                    >
+                      {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} strokeWidth={1.5} />}
+                    </button>
+                  </div>
+                </div>
               </div>
+            </div>
+          )}
 
-              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                <button 
-                  onClick={handleCopy} 
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-black text-[#f0f0f4] hover:bg-black/80 transition-all duration-300 text-sm tracking-widest uppercase flex items-center justify-center gap-2.5"
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} strokeWidth={1.5} />}
-                  {copied ? 'Copied' : 'Copy Link'}
-                </button>
-                
-                {typeof navigator !== 'undefined' && 'share' in navigator && (
-                  <button
-                    onClick={() => (navigator as Navigator & { share: (data: object) => void }).share({ url: `https://${finalUrl}`, title: 'Chaosbox' })}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-full border border-black/15 text-black/55 hover:border-black/30 hover:text-black/80 transition-all duration-300 text-sm tracking-widest uppercase flex items-center justify-center gap-2.5"
-                  >
-                    <Share2 size={14} strokeWidth={1.5} />
-                    Share
-                  </button>
-                )}
-              </div>
-
-              <button onClick={handleReset} className="text-black/20 hover:text-black/50 transition-colors text-xs tracking-[0.2em] uppercase">
-                Create Another
+          {flow === 'revealed' && (
+            <div className="absolute bottom-12 left-0 right-0 flex justify-center z-10">
+              <button 
+                onClick={handleReset} 
+                className="text-black/25 hover:text-black/60 transition-colors text-[10px] tracking-[0.4em] uppercase"
+              >
+                Create another egg
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* ── Bottom nav ── */}
       {flow === 'content' && (
-        <div className="absolute bottom-6 right-6 md:bottom-9 md:right-10 z-10 flex items-center gap-6">
-          <button
-            onClick={() => { if (hasContent) setFlow('params'); }}
-            disabled={!hasContent}
-            className={`text-sm tracking-widest uppercase transition-all duration-300 ${hasContent ? 'text-black/45 hover:text-black/80' : 'text-black/15 cursor-default'}`}
-          >
-            Next →
-          </button>
+        <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center">
+          <div className="flex items-center gap-5">
+            <div className="flex gap-1.5">
+              <div className={`rounded-full transition-all duration-300 ${flow === 'content' ? 'w-4 h-1 bg-black/50' : 'w-1.5 h-1 bg-black/20'}`} />
+              <div className={`rounded-full transition-all duration-300 ${flow === 'params' ? 'w-4 h-1 bg-black/50' : 'w-1.5 h-1 bg-black/20'}`} />
+            </div>
+            <button
+              onClick={() => { if (hasContent) setFlow('params'); }}
+              disabled={!hasContent}
+              className={`transition-all duration-300 ${hasContent ? 'text-black/45 hover:text-black/80' : 'text-black/15 cursor-default'}`}
+            >
+              <ArrowRight size={24} strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {flow === 'params' && (
+        <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center">
+          <div className="flex items-center gap-6">
+            <button onClick={() => setFlow('content')} className="text-black/25 hover:text-black/60 transition-colors">
+              <ArrowLeft size={24} strokeWidth={1.5} />
+            </button>
+            <div className="w-1.5 h-1 bg-black/20 rounded-full" />
+            <button 
+              onClick={handleEgg} 
+              disabled={isSubmitting}
+              className="bg-black/50 text-[#f0f0f4] px-6 py-2.5 rounded-full text-[10px] tracking-[0.3em] uppercase hover:bg-black/70 transition-all active:scale-95 disabled:opacity-30"
+            >
+              LOCK
+            </button>
+          </div>
         </div>
       )}
 
