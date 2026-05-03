@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EggBox",
+  title: "Magic Egg",
   description: "Put something inside. Decide how it will open. Send it.",
 };
 

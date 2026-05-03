@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendMagicLink } from '@/lib/email';
 
 export async function POST(request: Request) {
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
 
     const results = await Promise.all(emails.map(async (email: string) => {
       const token = Math.random().toString(36).substring(2, 15);
-      await supabase.from('egg_participants').upsert({
+      await supabaseAdmin.from('egg_participants').upsert({
         post_id: id,
         email: email,
         token: token,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
   try {
     // 1. Check if token exists and belongs to the egg
-    const { data: participant, error: findError } = await supabase
+    const { data: participant, error: findError } = await supabaseAdmin
       .from('egg_participants')
       .select('id, email')
       .eq('token', token)
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     }
 
     // 2. Mark as verified
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('egg_participants')
       .update({
         is_verified: true,
