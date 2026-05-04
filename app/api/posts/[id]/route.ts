@@ -16,23 +16,25 @@ export async function GET(
 
   try {
     // 1. Fetch the egg and its participants in ONE single joined query
-    // This is much more robust than two separate queries
+    // Use a random query parameter to force Supabase to bypass any internal caches
     const { data: post, error: postError } = await supabaseAdmin
       .from('posts')
       .select('*, egg_participants(email, is_verified, last_active)')
       .eq('id', id)
+      .query('ignore_cache', Math.random().toString()) // Nuclear option to force fresh data
       .single();
 
     if (postError || !post) {
       return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
     }
 
-    // 2. Define strict headers to kill any potential caching
+    // 2. Define strict headers to kill any potential caching at the CDN level
     const headers = {
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
       'Pragma': 'no-cache',
       'Expires': '0',
       'Surrogate-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff'
     };
 
     // 3. Handle files (signed URLs)
@@ -63,9 +65,16 @@ export async function GET(
         };
       });
 
-      // Remove the raw joined data before sending to client
-      delete post.egg_participants;
-      return NextResponse.json({ ...post, participants }, { headers });
+      // DEBUG: Return raw counts to the client so we can see what's happening
+      return NextResponse.json({ 
+        ...post, 
+        participants,
+        _debug: {
+          db_count: participants_data.length,
+          verified_in_db: participants_data.filter((p: any) => p.is_verified).length,
+          authorized_count: authorizedEmails.length
+        }
+      }, { headers });
     }
 
     return NextResponse.json(post, { headers });
