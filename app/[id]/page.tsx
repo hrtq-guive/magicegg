@@ -138,16 +138,24 @@ function EggContent({ params }: { params: { id: string } }) {
   // Heartbeat for simultaneous
   useEffect(() => {
     if (post?.unlock_type === 'simultaneous' && userEmail && userToken && !showText) {
+      console.log('--- STARTING HEARTBEAT INTERVAL ---', { userEmail, userToken });
       const sendHeartbeat = () => {
+        console.log('--- SENDING HEARTBEAT ---');
         fetch(`/api/posts/${params.id}/presence`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: userEmail, token: userToken })
-        }).catch(err => console.error('Heartbeat failed:', err));
+        })
+        .then(res => {
+          if (!res.ok) console.error('Heartbeat failed with status:', res.status);
+          return res.json();
+        })
+        .then(data => console.log('Heartbeat response:', data))
+        .catch(err => console.error('Heartbeat fetch error:', err));
       };
 
       sendHeartbeat(); // Initial
-      heartbeatInterval.current = setInterval(sendHeartbeat, 5000); // Every 5s for faster registration
+      heartbeatInterval.current = setInterval(sendHeartbeat, 5000); // Every 5s
     } else {
       if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
     }

@@ -17,13 +17,19 @@ export async function POST(request: Request) {
 
     const results = await Promise.all(emails.map(async (email: string) => {
       const token = Math.random().toString(36).substring(2, 15);
-      await supabaseAdmin.from('egg_participants').upsert({
+      const { error: upsertError } = await supabaseAdmin.from('egg_participants').upsert({
         post_id: id,
         email: email,
         token: token,
         is_verified: false,
         last_active: new Date().toISOString()
       }, { onConflict: 'post_id,email' });
+
+      if (upsertError) {
+        console.error(`--- DB ERROR SAVING PARTICIPANT ${email} for egg ${id}:`, upsertError);
+      } else {
+        console.log(`--- DB SUCCESS: Saved participant ${email} for egg ${id} ---`);
+      }
 
       const { success, error } = await sendMagicLink(email, id, token);
 
