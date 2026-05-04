@@ -79,7 +79,7 @@ export async function GET(
       });
 
       console.log(`--- PARTICIPANTS FOR ${id} ---`);
-      processedParticipants.forEach(p => console.log(`  - ${p.email}: verified=${p.is_verified}, active=${p.is_active}`));
+      processedParticipants.forEach((p: { email: string; is_verified: boolean; is_active: boolean }) => console.log(`  - ${p.email}: verified=${p.is_verified}, active=${p.is_active}`));
 
       return NextResponse.json({ ...post, participants: processedParticipants });
     }
