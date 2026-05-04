@@ -134,6 +134,11 @@ export default function NewEggPage() {
       const origin = typeof window !== 'undefined' ? window.location.origin : 'magicegg.heretique.fr';
       setFinalUrl(`${origin.replace('https://', '').replace('http://', '')}/${id}`);
 
+      // Update the URL in the browser bar so user can copy from there (Fix)
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', `/${id}`);
+      }
+
       // Phase 2: Wait briefly, then snap shut
       setTimeout(() => {
         setEggPhase('idle');
