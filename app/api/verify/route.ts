@@ -3,81 +3,85 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get('token');
-  const eggId = searchParams.get('id');
-  const emailParam = searchParams.get('email');
+  
+  // Hardened decoding and trimming
+  const token = decodeURIComponent(searchParams.get('token') ?? '').trim();
+  const eggId = searchParams.get('id') ?? '';
+  const emailParam = decodeURIComponent(searchParams.get('email') ?? '').trim();
 
-  console.log(`--- VERIFY ATTEMPT: egg=${eggId}, email=${emailParam}, token=${token?.substring(0, 5)}... ---`);
+  console.log(`--- HARDENED VERIFY ATTEMPT: egg=${eggId}, email=${emailParam}, token=${token.substring(0, 5)}... ---`);
 
   if (!eggId) {
     return NextResponse.json({ error: 'Missing egg ID' }, { status: 400 });
   }
 
+  // Check for Service Role Key
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('--- CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY IS NOT SET IN ENV ---');
+  }
+
   try {
     const origin = process.env.NEXT_PUBLIC_BASE_URL || 'https://magicegg.heretique.fr';
 
-    // 1. Try to find by token first
-    let participant;
-    if (token) {
-      const { data } = await supabaseAdmin
-        .from('egg_participants')
-        .select('id, email, is_verified, token')
-        .eq('token', token)
-        .eq('post_id', eggId)
-        .single();
-      participant = data;
-    }
+    // Step 1: Find the participant first — confirms token exists before updating
+    const { data: participant, error: lookupError } = await supabaseAdmin
+      .from('egg_participants')
+      .select('id, email, is_verified, token')
+      .eq('token', token)
+      .eq('post_id', eggId)
+      .single();
 
-    // 2. If token lookup failed, try email lookup if provided (handles "already verified" case)
-    if (!participant && emailParam) {
-      const { data } = await supabaseAdmin
-        .from('egg_participants')
-        .select('id, email, is_verified, token')
-        .eq('email', emailParam.toLowerCase())
-        .eq('post_id', eggId)
-        .single();
+    if (lookupError || !participant) {
+      console.error('--- TOKEN LOOKUP FAILED:', { eggId, token, lookupError });
       
-      // ONLY allow this if they are already verified
-      if (data?.is_verified) {
-        participant = data;
-        console.log(`--- ALREADY VERIFIED: egg=${eggId}, email=${emailParam} ---`);
-        
-        // Update last_active even if already verified
-        await supabaseAdmin
+      // Fallback: Check if they are already verified via email (idempotency)
+      if (emailParam) {
+        const { data: alreadyVerified } = await supabaseAdmin
           .from('egg_participants')
-          .update({ last_active: new Date().toISOString() })
-          .eq('id', data.id);
+          .select('id, email, is_verified, token')
+          .eq('email', emailParam.toLowerCase())
+          .eq('post_id', eggId)
+          .single();
+        
+        if (alreadyVerified?.is_verified) {
+          console.log(`--- ALREADY VERIFIED (Fallback): egg=${eggId}, email=${emailParam} ---`);
+          return NextResponse.redirect(`${origin}/${eggId}?verified=true&email=${encodeURIComponent(alreadyVerified.email)}&token=${alreadyVerified.token}`);
+        }
       }
-    }
 
-    if (!participant) {
-      console.error(`--- VERIFICATION FAILED: egg=${eggId}, token=${token}, email=${emailParam} ---`);
       return NextResponse.json({ error: 'Invalid or expired link. Please request a new key.' }, { status: 403 });
     }
 
-    // 3. Mark as verified if not already
-    if (!participant.is_verified) {
-      console.log(`--- UPDATING VERIFICATION: participant_id=${participant.id} ---`);
-      const { error: updateError } = await supabaseAdmin
-        .from('egg_participants')
-        .update({
-          is_verified: true,
-          verified_at: new Date().toISOString(),
-          last_active: new Date().toISOString()
-        })
-        .eq('id', participant.id);
-
-      if (updateError) {
-        console.error('--- DB VERIFICATION ERROR:', updateError);
-        return NextResponse.json({ error: 'Failed to verify participant' }, { status: 500 });
-      }
-      console.log(`--- VERIFICATION SUCCESS: participant_id=${participant.id} ---`);
+    // Step 2: Already verified — just redirect
+    if (participant.is_verified) {
+      console.log(`--- ALREADY VERIFIED: egg=${eggId}, email=${participant.email} ---`);
+      return NextResponse.redirect(`${origin}/${eggId}?verified=true&email=${encodeURIComponent(participant.email)}&token=${participant.token}`);
     }
 
-    // 4. Redirect back to the egg page with email AND token for session management
-    return NextResponse.redirect(`${origin}/${eggId}?verified=true&email=${encodeURIComponent(participant.email)}&token=${participant.token}`);
+    // Step 3: Perform the update, selecting back to confirm
+    console.log(`--- UPDATING VERIFICATION: id=${participant.id} ---`);
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('egg_participants')
+      .update({
+        is_verified: true,
+        verified_at: new Date().toISOString(),
+        last_active: new Date().toISOString()
+      })
+      .eq('id', participant.id)
+      .select()
+      .single();
+
+    if (updateError || !updated) {
+      console.error('--- UPDATE FAILED:', { updateError, updated });
+      return NextResponse.json({ error: 'Failed to update verification status' }, { status: 500 });
+    }
+
+    console.log(`--- VERIFICATION SUCCESS: email=${updated.email} ---`);
+
+    // Step 4: Redirect back to the egg page
+    return NextResponse.redirect(`${origin}/${eggId}?verified=true&email=${encodeURIComponent(updated.email)}&token=${updated.token}`);
   } catch (error: any) {
-    console.error('Verification error:', error);
+    console.error('--- UNEXPECTED VERIFICATION ERROR:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
