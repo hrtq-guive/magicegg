@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,49 +7,46 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Ultra-robust ID cleaning
-  const rawId = params.id;
-  const decodedId = decodeURIComponent(rawId).trim();
-  
-  console.log(`--- POLLING START: raw="${rawId}", decoded="${decodedId}" ---`);
+  const decodedId = decodeURIComponent(params.id).trim();
+
+  // Re-initialize locally to avoid any shared client/cache issues
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const localAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+  console.log(`--- POLLING ATTEMPT: ${decodedId} (URL: ${supabaseUrl.substring(0, 20)}...) ---`);
 
   try {
-    // 1. Fetch the egg post
-    const { data: post, error: postError } = await supabaseAdmin
+    // 1. Fetch post
+    const { data: post, error: postError } = await localAdmin
       .from('posts')
       .select('*')
       .ilike('id', decodedId)
       .single();
 
     if (postError || !post) {
-      console.error(`--- EGG NOT FOUND: ${decodedId} ---`, postError);
       return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
     }
 
-    // 2. Handle files (signed URLs)
-    if (post.files && Array.isArray(post.files) && post.files.length > 0) {
-      const { data: signedUrls } = await supabaseAdmin.storage
-        .from('egg-contents')
-        .createSignedUrls(post.files, 3600);
-      if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
-    }
-
-    // 3. Simultaneous logic - ULTRA AGGRESSIVE FETCH
+    // 2. Simultaneous logic
     if (post.unlock_type === 'simultaneous') {
-      // Use BOTH the decoded ID and the ID from the database record
-      const searchId = post.id || decodedId;
+      // DEBUG: Fetch ALL participants to see what the client sees
+      const { data: allRows } = await localAdmin.from('egg_participants').select('id, post_id, email, is_verified');
+      console.log(`--- TABLE SCAN: ${allRows?.length || 0} rows found in egg_participants ---`);
       
-      const { data: participants, error: pError } = await supabaseAdmin
-        .from('egg_participants')
-        .select('*') // Select all to avoid column mismatch
-        .ilike('post_id', searchId);
-
-      if (pError) {
-        console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${searchId}:`, pError);
+      if (allRows && allRows.length > 0) {
+        const sample = allRows[0];
+        console.log(`--- SAMPLE ROW: post_id="${sample.post_id}", type=${typeof sample.post_id} ---`);
       }
 
+      // Perform the actual filter
+      const { data: participants, error: pError } = await localAdmin
+        .from('egg_participants')
+        .select('email, is_verified')
+        .ilike('post_id', decodedId);
+
       const dbParticipants = participants || [];
-      console.log(`--- POLLING SUCCESS: ${searchId}. Found ${dbParticipants.length} participants (Query: ilike '${searchId}') ---`);
+      console.log(`--- FILTERED RESULT: Found ${dbParticipants.length} for ${decodedId} ---`);
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
@@ -58,7 +55,6 @@ export async function GET(
 
       const processedParticipants = authorizedEmails.map((email: string) => {
         const p = dbParticipants.find(record => record.email.toLowerCase() === email);
-        
         return {
           email: email,
           is_verified: p ? p.is_verified : false,
@@ -71,7 +67,7 @@ export async function GET(
 
     return NextResponse.json(post);
   } catch (error: any) {
-    console.error(`API Error in GET /api/posts/${decodedId}:`, error);
+    console.error(`--- CRITICAL POLLING ERROR:`, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
