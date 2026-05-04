@@ -43,6 +43,7 @@ function EggContent({ params }: { params: { id: string } }) {
   const [requestError, setRequestError] = useState('');
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [allParticipantsReady, setAllParticipantsReady] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
   const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
@@ -124,6 +125,14 @@ function EggContent({ params }: { params: { id: string } }) {
     return () => { if (heartbeatInterval.current) clearInterval(heartbeatInterval.current); };
   }, [post?.unlock_type, userEmail, showText]);
   
+  // Timer for resend countdown
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setInterval(() => setResendCountdown(prev => prev - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [resendCountdown]);
+
   // Timer for time-based lock
   useEffect(() => {
     if (post?.unlock_type === 'time' && !showText) {
@@ -250,6 +259,7 @@ function EggContent({ params }: { params: { id: string } }) {
       }
       
       setLinkSent(true);
+      setResendCountdown(60);
     } catch (err: any) {
       setRequestError(err.message);
       setShakePrompt(true);
@@ -324,6 +334,16 @@ function EggContent({ params }: { params: { id: string } }) {
                     className="px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-50"
                   >
                     {isRequestingLink ? 'Sending Keys...' : 'Receive Key'}
+                  </button>
+                )}
+
+                {linkSent && !userEmail && (
+                  <button
+                    onClick={handleBulkRequestLink}
+                    disabled={isRequestingLink || resendCountdown > 0}
+                    className="text-[9px] tracking-[0.2em] uppercase text-black/40 hover:text-black/80 transition-colors disabled:opacity-50"
+                  >
+                    {resendCountdown > 0 ? `Resend Key in ${resendCountdown}s` : 'Resend Key'}
                   </button>
                 )}
                 
