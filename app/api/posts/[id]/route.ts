@@ -74,13 +74,15 @@ export async function GET(
           const nowMs = Date.now();
           const lastActiveMs = lastActiveDate ? lastActiveDate.getTime() : 0;
           
-          // Calculate difference in seconds
-          const diffSeconds = Math.floor(Math.abs(nowMs - lastActiveMs) / 1000);
+          // Calculate difference in seconds (positive means past, negative means future)
+          const diffSeconds = (nowMs - lastActiveMs) / 1000;
           
-          // Even wider threshold: 5 minutes (for extreme drift)
+          // ACTIVE if:
+          // 1. It happened in the last 5 minutes (diffSeconds < 300)
+          // 2. OR it happened in the "future" (diffSeconds < 0) due to clock drift
           const isActive = diffSeconds < 300; 
 
-          console.log(`[DEBUG] ${email}: diff=${diffSeconds}s, rawDB="${lastActiveStr}", parsed=${lastActiveDate?.toISOString()}, now=${new Date(nowMs).toISOString()}`);
+          console.log(`[DEBUG] ${email}: diff=${diffSeconds}s (negative means future), rawDB="${lastActiveStr}", now=${new Date(nowMs).toISOString()}, active=${isActive}`);
 
           return {
             email: p.email,
