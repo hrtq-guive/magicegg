@@ -43,10 +43,16 @@ export async function GET(
     }
 
     if (post.unlock_type === 'simultaneous') {
-      const { data: participants } = await supabaseAdmin
+      const { data: participants, error: pError } = await supabaseAdmin
         .from('egg_participants')
         .select('email, is_verified, last_active')
         .eq('post_id', id);
+
+      if (pError) {
+        console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${id}:`, pError);
+      } else {
+        console.log(`--- FETCHED ${participants?.length || 0} PARTICIPANTS FOR ${id} ---`);
+      }
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
