@@ -118,7 +118,7 @@ function EggContent({ params }: { params: { id: string } }) {
       };
 
       sendHeartbeat(); // Initial
-      heartbeatInterval.current = setInterval(sendHeartbeat, 10000); // Every 10s
+      heartbeatInterval.current = setInterval(sendHeartbeat, 5000); // Every 5s for faster registration
     } else {
       if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
     }
@@ -163,7 +163,11 @@ function EggContent({ params }: { params: { id: string } }) {
     }
 
     if (post.unlock_type && post.unlock_type !== '') {
-      setShowPrompt(true);
+      if (post.unlock_type === 'simultaneous' && allParticipantsReady) {
+        triggerUnlock();
+      } else {
+        setShowPrompt(true);
+      }
       return;
     }
 
@@ -327,23 +331,15 @@ function EggContent({ params }: { params: { id: string } }) {
           {post.unlock_type === 'simultaneous' && showPrompt && !showText && phase === 'idle' && (
             <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
               <div className="flex flex-col items-center gap-6 pointer-events-auto animate-in fade-in duration-500">
-                {!userEmail && !linkSent && (
-                  <button
-                    onClick={handleBulkRequestLink}
-                    disabled={isRequestingLink}
-                    className="px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-50"
-                  >
-                    {isRequestingLink ? 'Sending Keys...' : 'Receive Key'}
-                  </button>
-                )}
-                
-                {linkSent && (
+                {post.unlock_type === 'simultaneous' && !allParticipantsReady && (
                   <button
                     onClick={handleBulkRequestLink}
                     disabled={isRequestingLink || resendCountdown > 0}
-                    className="text-[9px] tracking-[0.2em] uppercase text-black/40 hover:text-black/80 transition-colors disabled:opacity-50"
+                    className={`${linkSent || userEmail ? 'text-[9px] tracking-[0.2em] uppercase text-black/40 hover:text-black/80' : 'px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white'} transition-all duration-300 disabled:opacity-50`}
                   >
-                    {resendCountdown > 0 ? `Resend Key in ${resendCountdown}s` : 'Resend Key'}
+                    {isRequestingLink ? 'Sending Keys...' : 
+                     resendCountdown > 0 ? `Resend Key in ${resendCountdown}s` : 
+                     (linkSent || userEmail) ? 'Resend Key' : 'Receive Key'}
                   </button>
                 )}
                 

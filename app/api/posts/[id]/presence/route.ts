@@ -15,8 +15,7 @@ export async function POST(
       .from('egg_participants')
       .update({ last_active: new Date().toISOString() })
       .eq('post_id', eggId)
-      .eq('email', email.toLowerCase())
-      .eq('is_verified', true);
+      .eq('email', email.toLowerCase());
 
     if (error) throw error;
     return NextResponse.json({ success: true });
