@@ -12,7 +12,7 @@ export async function GET(
   // Rule Out post_id Encoding Issue (Fix 4)
   console.log('post_id raw:', JSON.stringify(id));
   console.log('post_id length:', id.length);
-  console.log('post_id charCodes:', [...id].map(c => c.charCodeAt(0)));
+  console.log('post_id charCodes:', id.split('').map(c => c.charCodeAt(0)));
 
   try {
     // 1. Fetch the egg
