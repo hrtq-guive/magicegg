@@ -18,11 +18,12 @@ export async function POST(request: Request) {
       const token = Math.random().toString(36).substring(2, 15);
       
       // Clean Upsert using the new unique constraint
-      const { error: upsertError } = await supabaseAdmin.from('egg_keys').upsert({
+      const { error: upsertError } = await supabaseAdmin.from('egg_participants').upsert({
         post_id: id,
         email: email,
         token: token,
-        is_verified: false
+        is_verified: false,
+        last_active: new Date().toISOString()
       }, { onConflict: 'post_id,email' });
 
       if (upsertError) {

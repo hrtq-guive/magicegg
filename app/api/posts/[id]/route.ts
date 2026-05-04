@@ -44,11 +44,11 @@ export async function GET(
       if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
     }
 
-    // 4. For Simultaneous eggs, fetch their keys
+    // 4. For Simultaneous eggs, fetch their keys/participants
     if (post.unlock_type === 'simultaneous') {
-      const { data: keys } = await supabaseAdmin
-        .from('egg_keys')
-        .select('email, is_verified')
+      const { data: participants_data } = await supabaseAdmin
+        .from('egg_participants')
+        .select('email, is_verified, last_active')
         .eq('post_id', id);
 
       const authorizedEmails = (post.unlock_value || '')
@@ -57,10 +57,13 @@ export async function GET(
         .filter((e: string) => e.length > 0 && e.includes('@'));
 
       const participants = authorizedEmails.map((email: string) => {
-        const k = (keys || []).find(key => key.email.toLowerCase() === email);
+        const p = (participants_data || []).find(p => p.email.toLowerCase() === email);
+        const is_active = p && p.last_active ? (Date.now() - new Date(p.last_active).getTime() < 15000) : false;
+        
         return {
           email: email,
-          is_verified: k ? k.is_verified : false
+          is_verified: p ? p.is_verified : false,
+          is_active: is_active
         };
       });
 

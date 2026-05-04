@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     // 1. Mark as verified and return the email in one step
     const { data: updated, error } = await supabaseAdmin
-      .from('egg_keys')
+      .from('egg_participants')
       .update({ is_verified: true, verified_at: new Date().toISOString() })
       .eq('token', token)
       .eq('post_id', eggId)
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     if (error || !updated) {
       // If update fails, check if already verified (idempotency)
       const { data: existing } = await supabaseAdmin
-        .from('egg_keys')
+        .from('egg_participants')
         .select('email, token, is_verified')
         .eq('token', token)
         .single();
