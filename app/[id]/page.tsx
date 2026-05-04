@@ -8,7 +8,6 @@ import WhiteEgg from '@/components/WhiteEgg';
 interface Participant {
   email: string;
   is_verified: boolean;
-  is_active: boolean;
   debug_diff?: number;
 }
 
@@ -67,7 +66,6 @@ function EggContent({ params }: { params: { id: string } }) {
   }, [resendCountdown, params.id]);
   
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
 
   const fetchPost = async () => {
     try {
@@ -316,7 +314,6 @@ function EggContent({ params }: { params: { id: string } }) {
     );
   }
 
-  const activeCount = post.participants?.filter(p => p.is_verified && p.is_active).length || 0;
   const totalCount = post.unlock_type === 'simultaneous' ? (post.participants?.length || post.unlock_value?.split(',').filter(e => e.includes('@')).length || 0) : 0;
 
   return (

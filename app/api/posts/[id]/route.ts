@@ -19,9 +19,9 @@ export async function GET(
     // Use a random query parameter to force Supabase to bypass any internal caches
     const { data: post, error: postError } = await supabaseAdmin
       .from('posts')
-      .select('*, egg_participants(email, is_verified, last_active)')
+      .select('*, egg_participants(email, is_verified)')
       .eq('id', id)
-      .query('ignore_cache', Math.random().toString()) // Nuclear option to force fresh data
+      .neq('id', `cache-bust-${Math.random()}`) // Use a dummy filter to bust the cache safely
       .single();
 
     if (postError || !post) {
@@ -56,12 +56,10 @@ export async function GET(
 
       const participants = authorizedEmails.map((email: string) => {
         const p = participants_data.find((p: any) => p.email.toLowerCase() === email);
-        const is_active = p && p.last_active ? (Date.now() - new Date(p.last_active).getTime() < 15000) : false;
         
         return {
           email: email,
-          is_verified: p ? !!p.is_verified : false,
-          is_active: is_active
+          is_verified: p ? !!p.is_verified : false
         };
       });
 
