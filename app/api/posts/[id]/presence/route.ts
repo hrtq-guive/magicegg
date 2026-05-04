@@ -6,18 +6,19 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { email } = await request.json();
+    const { email, token } = await request.json();
     const eggId = params.id;
 
-    console.log(`--- PRESENCE HEARTBEAT: egg=${eggId}, email=${email} ---`);
+    console.log(`--- PRESENCE HEARTBEAT: egg=${eggId}, email=${email}, token=${token?.substring(0, 5)} ---`);
 
-    if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
+    if (!email || !token) return NextResponse.json({ error: 'Email and token required' }, { status: 400 });
 
     const { error } = await supabaseAdmin
       .from('egg_participants')
       .update({ last_active: new Date().toISOString() })
       .eq('post_id', eggId)
-      .eq('email', email.toLowerCase());
+      .eq('email', email.toLowerCase())
+      .eq('token', token);
 
     if (error) throw error;
     return NextResponse.json({ success: true });

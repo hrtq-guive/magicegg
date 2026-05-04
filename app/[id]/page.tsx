@@ -42,6 +42,7 @@ function EggContent({ params }: { params: { id: string } }) {
   const [linkSent, setLinkSent] = useState(false);
   const [requestError, setRequestError] = useState('');
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userToken, setUserToken] = useState<string | null>(null);
   const [allParticipantsReady, setAllParticipantsReady] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   
@@ -103,15 +104,24 @@ function EggContent({ params }: { params: { id: string } }) {
   useEffect(() => {
     fetchPost();
     
-    // 1. Check URL params for verified email
+    // 1. Check URL params for verified email and token
     const emailParam = searchParams.get('email');
+    const tokenParam = searchParams.get('token');
+
     if (emailParam) {
       setUserEmail(emailParam);
       localStorage.setItem(`egg_${params.id}_email`, emailParam);
     } else {
-      // 2. Fallback to localStorage
-      const saved = localStorage.getItem(`egg_${params.id}_email`);
-      if (saved) setUserEmail(saved);
+      const savedEmail = localStorage.getItem(`egg_${params.id}_email`);
+      if (savedEmail) setUserEmail(savedEmail);
+    }
+
+    if (tokenParam) {
+      setUserToken(tokenParam);
+      localStorage.setItem(`egg_${params.id}_token`, tokenParam);
+    } else {
+      const savedToken = localStorage.getItem(`egg_${params.id}_token`);
+      if (savedToken) setUserToken(savedToken);
     }
   }, [params.id, searchParams]);
 
@@ -127,12 +137,12 @@ function EggContent({ params }: { params: { id: string } }) {
 
   // Heartbeat for simultaneous
   useEffect(() => {
-    if (post?.unlock_type === 'simultaneous' && userEmail && !showText) {
+    if (post?.unlock_type === 'simultaneous' && userEmail && userToken && !showText) {
       const sendHeartbeat = () => {
         fetch(`/api/posts/${params.id}/presence`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userEmail })
+          body: JSON.stringify({ email: userEmail, token: userToken })
         }).catch(err => console.error('Heartbeat failed:', err));
       };
 

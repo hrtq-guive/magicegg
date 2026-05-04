@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function sendMagicLink(email: string, eggId: string, token: string) {
   // Use a reliable base URL. Fallback to localhost for local testing.
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://magicegg.heretique.fr';
-  const magicLink = `${baseUrl}/api/verify?token=${token}&id=${eggId}`;
+  const magicLink = `${baseUrl}/api/verify?token=${token}&id=${eggId}&email=${encodeURIComponent(email)}`;
 
   try {
     const { data, error } = await resend.emails.send({
