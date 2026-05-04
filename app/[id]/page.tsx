@@ -327,7 +327,7 @@ function EggContent({ params }: { params: { id: string } }) {
           {post.unlock_type === 'simultaneous' && showPrompt && !showText && phase === 'idle' && (
             <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
               <div className="flex flex-col items-center gap-6 pointer-events-auto animate-in fade-in duration-500">
-                {!linkSent && !userEmail && (
+                {!userEmail && !linkSent && (
                   <button
                     onClick={handleBulkRequestLink}
                     disabled={isRequestingLink}
@@ -336,8 +336,8 @@ function EggContent({ params }: { params: { id: string } }) {
                     {isRequestingLink ? 'Sending Keys...' : 'Receive Key'}
                   </button>
                 )}
-
-                {linkSent && !userEmail && (
+                
+                {linkSent && (
                   <button
                     onClick={handleBulkRequestLink}
                     disabled={isRequestingLink || resendCountdown > 0}
@@ -355,8 +355,12 @@ function EggContent({ params }: { params: { id: string } }) {
                       </span>
                       <div className="flex items-center gap-3 mt-2">
                         {post.participants?.map((p, i) => (
-                          <div key={i} className="flex items-center gap-1.5" title={p.email}>
-                            <Circle size={8} fill={p.is_active ? '#22c55e' : '#ef4444'} className={p.is_active ? 'text-green-500' : 'text-red-500'} />
+                          <div key={i} className="flex items-center gap-1.5" title={`${p.email} (${p.is_verified ? 'Verified' : 'Unverified'})`}>
+                            <Circle 
+                              size={8} 
+                              fill={p.is_active ? '#22c55e' : p.is_verified ? '#3b82f6' : '#ef4444'} 
+                              className={p.is_active ? 'text-green-500' : p.is_verified ? 'text-blue-500' : 'text-red-500'} 
+                            />
                           </div>
                         ))}
                       </div>

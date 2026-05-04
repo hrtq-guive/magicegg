@@ -6,6 +6,8 @@ export async function GET(request: Request) {
   const token = searchParams.get('token');
   const eggId = searchParams.get('id');
 
+  console.log(`--- VERIFY ATTEMPT: egg=${eggId}, token=${token?.substring(0, 5)}... ---`);
+
   if (!token || !eggId) {
     return NextResponse.json({ error: 'Missing token or egg ID' }, { status: 400 });
   }
