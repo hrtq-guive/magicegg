@@ -133,7 +133,7 @@ export default function NewEggPage() {
 
       const data = await res.json();
       const id = data.id || customId.trim() || 'your-egg';
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'eggbox.netlify.app';
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'magicegg.heretique.fr';
       setFinalUrl(`${origin.replace('https://', '').replace('http://', '')}/${id}`);
 
       // Phase 2: Wait briefly, then snap shut
@@ -313,7 +313,7 @@ export default function NewEggPage() {
               <span className="params-label">Custom URL <span className="opacity-40 normal-case tracking-normal font-normal text-sm">— optional</span></span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-black/25 text-2xl leading-none select-none">
-                  {typeof window !== 'undefined' ? window.location.host + '/' : 'eggbox.netlify.app/'}
+                  {typeof window !== 'undefined' ? window.location.host + '/' : 'magicegg.heretique.fr/'}
                 </span>
                 <input
                   type="text"

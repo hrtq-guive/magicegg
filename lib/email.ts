@@ -4,12 +4,12 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendMagicLink(email: string, eggId: string, token: string) {
   // Use a reliable base URL. Fallback to localhost for local testing.
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://magicegg.netlify.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://magicegg.heretique.fr';
   const magicLink = `${baseUrl}/api/verify?token=${token}&id=${eggId}`;
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'MagicEgg <onboarding@resend.dev>', // You should verify your domain in Resend for custom from address
+      from: 'MagicEgg <unlock@magicegg.heretique.fr>', // You should verify your domain in Resend for custom from address
       to: [email],
       subject: 'Unlock your MagicEgg',
       html: `

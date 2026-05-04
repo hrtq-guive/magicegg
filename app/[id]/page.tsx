@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, FileText, Download, Circle } from 'lucide-react';
+import { ArrowLeft, FileText, Download, Circle, MapPin, Clock } from 'lucide-react';
 import WhiteEgg from '@/components/WhiteEgg';
 
 interface Participant {
@@ -35,6 +35,7 @@ function EggContent({ params }: { params: { id: string } }) {
   const [shakePrompt, setShakePrompt] = useState(false);
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Simultaneous state
   const [isRequestingLink, setIsRequestingLink] = useState(false);
@@ -122,9 +123,35 @@ function EggContent({ params }: { params: { id: string } }) {
     }
     return () => { if (heartbeatInterval.current) clearInterval(heartbeatInterval.current); };
   }, [post?.unlock_type, userEmail, showText]);
+  
+  // Timer for time-based lock
+  useEffect(() => {
+    if (post?.unlock_type === 'time' && !showText) {
+      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [post?.unlock_type, showText]);
+
+  const isTimeReached = post?.unlock_type === 'time' && post.unlock_value && currentTime >= new Date(post.unlock_value);
 
   const handleEggClick = () => {
     if (phase !== 'idle' || !post) return;
+
+    if (post.unlock_type === 'time') {
+      if (isTimeReached) {
+        triggerUnlock();
+      } else {
+        setShowPrompt(true);
+      }
+      return;
+    }
+
+    if (post.unlock_type === 'location') {
+      setShowPrompt(true);
+      // Optional: auto-verify on click
+      verifyLocation();
+      return;
+    }
 
     if (post.unlock_type && post.unlock_type !== '') {
       setShowPrompt(true);
@@ -327,22 +354,92 @@ function EggContent({ params }: { params: { id: string } }) {
 
           {showPrompt && !showText && post.unlock_type !== 'simultaneous' && (
             <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
-              <form 
-                onSubmit={handleAttemptSubmit} 
-                className={`flex flex-col items-center pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500 ${shakePrompt ? 'egg-shake' : ''}`}
-              >
+              <div className={`flex flex-col items-center pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500 ${shakePrompt ? 'egg-shake' : ''}`}>
+                
                 {post.unlock_hint && (
-                  <div className="text-black/50 text-sm mb-4 font-elegant text-center">{post.unlock_hint}</div>
+                  <div className="text-black/50 text-sm mb-6 font-elegant text-center">{post.unlock_hint}</div>
                 )}
-                <input
-                  type={post.unlock_type === 'password' ? 'password' : 'text'}
-                  autoFocus
-                  value={attemptValue}
-                  onChange={(e) => setAttemptValue(e.target.value)}
-                  placeholder={post.unlock_type === 'password' ? 'Enter password...' : 'Enter key...'}
-                  className="input-small text-center bg-transparent border-b border-black/20 focus:border-black/50 outline-none px-4 py-2 transition-colors"
-                />
-              </form>
+
+                {post.unlock_type === 'password' && (
+                  <form onSubmit={handleAttemptSubmit} className="flex flex-col items-center">
+                    <input
+                      type="password"
+                      autoFocus
+                      value={attemptValue}
+                      onChange={(e) => setAttemptValue(e.target.value)}
+                      placeholder="Enter password..."
+                      className="input-small text-center bg-transparent border-b border-black/20 focus:border-black/50 outline-none px-4 py-2 transition-colors"
+                    />
+                  </form>
+                )}
+
+                {post.unlock_type === 'time' && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 text-black/40">
+                      <Clock size={16} strokeWidth={1.5} />
+                      <span className="text-[10px] tracking-[0.2em] uppercase">
+                        {isTimeReached ? 'Time reached' : 'Locked until'}
+                      </span>
+                    </div>
+                    <div className="text-xl font-elegant">
+                      {new Date(post.unlock_value || '').toLocaleString([], { 
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                      })}
+                    </div>
+                    {!isTimeReached && (
+                      <span className="text-[9px] text-black/30 tracking-widest uppercase mt-2 animate-pulse">
+                        Waiting for the moment...
+                      </span>
+                    )}
+                    {isTimeReached && (
+                      <button 
+                        onClick={triggerUnlock}
+                        className="mt-4 px-8 py-2 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white transition-all duration-300"
+                      >
+                        Unlock Now
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {post.unlock_type === 'location' && (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex items-center gap-2 text-black/40">
+                      <MapPin size={16} strokeWidth={1.5} />
+                      <span className="text-[10px] tracking-[0.2em] uppercase">Location Based Lock</span>
+                    </div>
+                    
+                    <div className="text-center max-w-xs">
+                      <p className="text-black/60 text-sm font-elegant">You must be within 100m of the target to unlock this egg.</p>
+                    </div>
+
+                    {locationError && (
+                      <span className="text-red-400 text-[10px] tracking-wider uppercase">{locationError}</span>
+                    )}
+
+                    <button
+                      onClick={verifyLocation}
+                      disabled={isVerifyingLocation}
+                      className="mt-2 px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-50"
+                    >
+                      {isVerifyingLocation ? 'Verifying...' : 'Check Location'}
+                    </button>
+                  </div>
+                )}
+
+                {post.unlock_type !== 'password' && post.unlock_type !== 'time' && post.unlock_type !== 'location' && (
+                  <form onSubmit={handleAttemptSubmit} className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={attemptValue}
+                      onChange={(e) => setAttemptValue(e.target.value)}
+                      placeholder="Enter key..."
+                      className="input-small text-center bg-transparent border-b border-black/20 focus:border-black/50 outline-none px-4 py-2 transition-colors"
+                    />
+                  </form>
+                )}
+              </div>
             </div>
           )}
 

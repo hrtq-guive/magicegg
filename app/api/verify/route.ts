@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     }
 
     // 3. Redirect back to the egg page
-    const origin = process.env.NEXT_PUBLIC_BASE_URL || 'https://eggbox.netlify.app';
+    const origin = process.env.NEXT_PUBLIC_BASE_URL || 'https://magicegg.heretique.fr';
     return NextResponse.redirect(`${origin}/${eggId}?verified=true&email=${encodeURIComponent(participant.email)}`);
   } catch (error: any) {
     console.error('Verification error:', error);
