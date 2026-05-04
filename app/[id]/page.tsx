@@ -89,7 +89,7 @@ function EggContent({ params }: { params: { id: string } }) {
       if (data.unlock_type === 'simultaneous' && data.participants && data.participants.length > 0) {
         const total = data.participants.length;
         const verified = data.participants.filter(p => p.is_verified).length;
-        console.log(`Poll Result: ${verified} / ${total} verified`, data._debug);
+        console.log(`Poll Result: ${verified} / ${total} verified`, (data as any)._debug);
         setAllParticipantsReady(verified >= total && total > 0);
       } else {
         setAllParticipantsReady(false);
