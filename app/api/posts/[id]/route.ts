@@ -9,6 +9,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const id = params.id;
+  const nowTime = new Date().toISOString();
+  console.log(`--- GET /api/posts/${id} started at ${nowTime} ---`);
 
   try {
     const { data: post, error } = await supabase
@@ -67,8 +69,14 @@ export async function GET(
         
         if (p) {
           const lastActiveDate = p.last_active ? new Date(p.last_active) : null;
-          const diff = lastActiveDate ? Math.abs(now.getTime() - lastActiveDate.getTime()) : Infinity;
-          const isActive = diff < 30000; // 30 second threshold
+          const nowMs = now.getTime();
+          const lastActiveMs = lastActiveDate ? lastActiveDate.getTime() : 0;
+          const diffSeconds = Math.round(Math.abs(nowMs - lastActiveMs) / 1000);
+          
+          // Use a much wider 2-minute threshold for server/DB clock drift
+          const isActive = diffSeconds < 120; 
+
+          console.log(`  - ${email}: diff=${diffSeconds}s, lastActive=${lastActiveDate?.toISOString()}, now=${now.toISOString()}, active=${isActive}`);
 
           return {
             email: p.email,
