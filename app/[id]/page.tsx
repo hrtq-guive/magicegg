@@ -70,7 +70,8 @@ function EggContent({ params }: { params: { id: string } }) {
 
   const fetchPost = async () => {
     try {
-      const res = await fetch(`/api/posts/${params.id}`, { cache: 'no-store' });
+      // Add timestamp to bust Netlify/CDN cache
+      const res = await fetch(`/api/posts/${params.id}?t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Not found');
       
       const contentType = res.headers.get('content-type');
