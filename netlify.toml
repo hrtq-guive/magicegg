@@ -1,0 +1,7 @@
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    CDN-Cache-Control = "no-store"
+    Netlify-CDN-Cache-Control = "no-store"
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    Surrogate-Control = "no-store"

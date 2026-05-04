@@ -25,7 +25,10 @@ export async function POST(request: Request) {
         is_verified: false
       }, { onConflict: 'post_id,email' });
 
-      if (upsertError) return { email, success: false, error: upsertError };
+      if (upsertError) {
+        console.error(`--- UPSERT ERROR FOR ${email}:`, upsertError);
+        return { email, success: false, error: upsertError };
+      }
 
       const { success, error } = await sendMagicLink(email, id, token);
       return { email, success, error };

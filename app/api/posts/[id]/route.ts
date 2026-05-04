@@ -7,7 +7,12 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const id = params.id.trim();
+  const id = params.id;
+
+  // Rule Out post_id Encoding Issue (Fix 4)
+  console.log('post_id raw:', JSON.stringify(id));
+  console.log('post_id length:', id.length);
+  console.log('post_id charCodes:', [...id].map(c => c.charCodeAt(0)));
 
   try {
     // 1. Fetch the egg
@@ -21,7 +26,17 @@ export async function GET(
       return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
     }
 
-    // 2. Handle files (signed URLs)
+    // 2. Define strict CDN-killing headers (Fix 1)
+    const headers = {
+      'CDN-Cache-Control': 'no-store',
+      'Netlify-CDN-Cache-Control': 'no-store',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Surrogate-Control': 'no-store',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    };
+
+    // 3. Handle files (signed URLs)
     if (post.files && Array.isArray(post.files) && post.files.length > 0) {
       const { data: signedUrls } = await supabaseAdmin.storage
         .from('egg-contents')
@@ -29,7 +44,7 @@ export async function GET(
       if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
     }
 
-    // 3. For Simultaneous eggs, fetch their keys
+    // 4. For Simultaneous eggs, fetch their keys
     if (post.unlock_type === 'simultaneous') {
       const { data: keys } = await supabaseAdmin
         .from('egg_keys')
@@ -49,10 +64,10 @@ export async function GET(
         };
       });
 
-      return NextResponse.json({ ...post, participants });
+      return NextResponse.json({ ...post, participants }, { headers });
     }
 
-    return NextResponse.json(post);
+    return NextResponse.json(post, { headers });
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
