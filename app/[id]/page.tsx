@@ -9,6 +9,7 @@ interface Participant {
   email: string;
   is_verified: boolean;
   is_active: boolean;
+  debug_diff?: number;
 }
 
 interface Post {

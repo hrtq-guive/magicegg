@@ -68,20 +68,25 @@ export async function GET(
         const p = (participants || []).find((record: any) => record.email.toLowerCase() === email);
         
         if (p) {
-          const lastActiveDate = p.last_active ? new Date(p.last_active) : null;
-          const nowMs = now.getTime();
+          // Robust date parsing
+          const lastActiveStr = p.last_active;
+          const lastActiveDate = lastActiveStr ? new Date(lastActiveStr) : null;
+          const nowMs = Date.now();
           const lastActiveMs = lastActiveDate ? lastActiveDate.getTime() : 0;
-          const diffSeconds = Math.round(Math.abs(nowMs - lastActiveMs) / 1000);
           
-          // Use a much wider 2-minute threshold for server/DB clock drift
-          const isActive = diffSeconds < 120; 
+          // Calculate difference in seconds
+          const diffSeconds = Math.floor(Math.abs(nowMs - lastActiveMs) / 1000);
+          
+          // Even wider threshold: 5 minutes (for extreme drift)
+          const isActive = diffSeconds < 300; 
 
-          console.log(`  - ${email}: diff=${diffSeconds}s, lastActive=${lastActiveDate?.toISOString()}, now=${now.toISOString()}, active=${isActive}`);
+          console.log(`[DEBUG] ${email}: diff=${diffSeconds}s, rawDB="${lastActiveStr}", parsed=${lastActiveDate?.toISOString()}, now=${new Date(nowMs).toISOString()}`);
 
           return {
             email: p.email,
             is_verified: p.is_verified,
-            is_active: isActive
+            is_active: isActive,
+            debug_diff: diffSeconds
           };
         } else {
           return {
@@ -93,7 +98,7 @@ export async function GET(
       });
 
       console.log(`--- PARTICIPANTS FOR ${id} ---`);
-      processedParticipants.forEach((p: { email: string; is_verified: boolean; is_active: boolean }) => console.log(`  - ${p.email}: verified=${p.is_verified}, active=${p.is_active}`));
+      processedParticipants.forEach((p: any) => console.log(`  - ${p.email}: verified=${p.is_verified}, active=${p.is_active}`));
 
       return NextResponse.json({ ...post, participants: processedParticipants });
     }
