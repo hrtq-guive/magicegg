@@ -46,7 +46,7 @@ export async function GET(
       const { data: participants, error: pError } = await supabaseAdmin
         .from('egg_participants')
         .select('email, is_verified, last_active')
-        .eq('post_id', id);
+        .eq('post_id', post.id);
 
       if (pError) {
         console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${id}:`, pError);
