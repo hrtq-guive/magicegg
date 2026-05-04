@@ -7,18 +7,22 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const id = params.id.trim();
+  // Ultra-robust ID cleaning
+  const rawId = params.id;
+  const decodedId = decodeURIComponent(rawId).trim();
+  
+  console.log(`--- POLLING START: raw="${rawId}", decoded="${decodedId}" ---`);
 
   try {
     // 1. Fetch the egg post
-    const { data: post, error } = await supabaseAdmin
+    const { data: post, error: postError } = await supabaseAdmin
       .from('posts')
       .select('*')
-      .eq('id', id)
+      .ilike('id', decodedId)
       .single();
 
-    if (error || !post) {
-      console.error(`--- EGG NOT FOUND: ${id} ---`, error);
+    if (postError || !post) {
+      console.error(`--- EGG NOT FOUND: ${decodedId} ---`, postError);
       return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
     }
 
@@ -30,20 +34,22 @@ export async function GET(
       if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
     }
 
-    // 3. Simultaneous logic - INDEPENDENT FETCH
+    // 3. Simultaneous logic - ULTRA AGGRESSIVE FETCH
     if (post.unlock_type === 'simultaneous') {
-      // We fetch participants by post_id string directly, avoiding broken Foreign Key joins
+      // Use BOTH the decoded ID and the ID from the database record
+      const searchId = post.id || decodedId;
+      
       const { data: participants, error: pError } = await supabaseAdmin
         .from('egg_participants')
-        .select('email, is_verified')
-        .eq('post_id', id);
+        .select('*') // Select all to avoid column mismatch
+        .ilike('post_id', searchId);
 
       if (pError) {
-        console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${id}:`, pError);
+        console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${searchId}:`, pError);
       }
 
       const dbParticipants = participants || [];
-      console.log(`--- POLLING EGG: ${id}. Found ${dbParticipants.length} participants via Direct Query ---`);
+      console.log(`--- POLLING SUCCESS: ${searchId}. Found ${dbParticipants.length} participants (Query: ilike '${searchId}') ---`);
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
@@ -65,7 +71,7 @@ export async function GET(
 
     return NextResponse.json(post);
   } catch (error: any) {
-    console.error(`API Error in GET /api/posts/${id}:`, error);
+    console.error(`API Error in GET /api/posts/${decodedId}:`, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
