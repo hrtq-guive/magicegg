@@ -43,7 +43,7 @@ export async function GET(
     }
 
     if (post.unlock_type === 'simultaneous') {
-      const { data: participants } = await supabase
+      const { data: participants } = await supabaseAdmin
         .from('egg_participants')
         .select('email, is_verified, last_active')
         .eq('post_id', id);

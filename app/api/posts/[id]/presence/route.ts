@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(
   request: Request,
@@ -11,7 +11,7 @@ export async function POST(
 
     if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('egg_participants')
       .update({ last_active: new Date().toISOString() })
       .eq('post_id', eggId)

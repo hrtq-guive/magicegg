@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendMagicLink } from '@/lib/email';
 
 export async function POST(
@@ -11,7 +11,7 @@ export async function POST(
     const eggId = params.id;
 
     // 1. Fetch the egg
-    const { data: egg, error: eggError } = await supabase
+    const { data: egg, error: eggError } = await supabaseAdmin
       .from('posts')
       .select('unlock_type, unlock_value')
       .eq('id', eggId)
@@ -37,7 +37,7 @@ export async function POST(
         // Use a simple random string instead of the crypto library to avoid environment issues
         const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         
-        const { error: upsertError } = await supabase
+        const { error: upsertError } = await supabaseAdmin
           .from('egg_participants')
           .upsert({
             post_id: eggId,
