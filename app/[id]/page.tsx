@@ -87,9 +87,9 @@ function EggContent({ params }: { params: { id: string } }) {
       
       // Check if all are ready (all participants must be verified)
       if (data.unlock_type === 'simultaneous' && data.participants && data.participants.length > 0) {
-        const required = data.unlock_value?.split(',').length || 0;
         const currentVerified = data.participants.filter(p => p.is_verified).length;
-        setAllParticipantsReady(currentVerified === required && required > 0);
+        // Ready if every participant record we found is verified
+        setAllParticipantsReady(currentVerified === data.participants.length);
       } else {
         setAllParticipantsReady(false);
       }

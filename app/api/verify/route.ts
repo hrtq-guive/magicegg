@@ -57,20 +57,21 @@ export async function GET(request: Request) {
 
     // 3. Mark as verified if not already
     if (!participant.is_verified) {
+      console.log(`--- UPDATING VERIFICATION: participant_id=${participant.id} ---`);
       const { error: updateError } = await supabaseAdmin
         .from('egg_participants')
         .update({
           is_verified: true,
           verified_at: new Date().toISOString(),
           last_active: new Date().toISOString()
-          // NOTE: We no longer clear the token; it acts as a session key
         })
         .eq('id', participant.id);
 
       if (updateError) {
-        console.error('Verification update error:', updateError);
+        console.error('--- DB VERIFICATION ERROR:', updateError);
         return NextResponse.json({ error: 'Failed to verify participant' }, { status: 500 });
       }
+      console.log(`--- VERIFICATION SUCCESS: participant_id=${participant.id} ---`);
     }
 
     // 4. Redirect back to the egg page with email AND token for session management
