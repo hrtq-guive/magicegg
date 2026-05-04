@@ -51,6 +51,15 @@ export async function GET(
         .select('email, is_verified, last_active')
         .eq('post_id', id);
 
+      // Force headers to be even more aggressive (Fix for Netlify caching)
+      const headers = {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store',
+        'X-Response-Time': new Date().toISOString()
+      };
+
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
         .map((e: string) => e.trim().toLowerCase())
@@ -62,7 +71,7 @@ export async function GET(
         
         return {
           email: email,
-          is_verified: p ? p.is_verified : false,
+          is_verified: p ? !!p.is_verified : false,
           is_active: is_active
         };
       });

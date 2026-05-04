@@ -24,7 +24,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No participants found' }, { status: 400 });
     }
 
+    // Fetch existing participants to check for the 5-minute grace period
+    const { data: existingParticipants } = await supabaseAdmin
+      .from('egg_participants')
+      .select('email, is_verified, verified_at')
+      .eq('post_id', id);
+
     const results = await Promise.all(emails.map(async (email: string) => {
+      const existing = (existingParticipants || []).find(p => p.email.toLowerCase() === email.toLowerCase());
+      
+      // 5-minute grace period: If already verified in the last 5 minutes, skip resetting/resending
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+      if (existing?.is_verified && existing.verified_at && new Date(existing.verified_at) > fiveMinsAgo) {
+        return { email, success: true, skipped: true };
+      }
+
       const token = Math.random().toString(36).substring(2, 15);
       
       const { error: upsertError } = await supabaseAdmin.from('egg_participants').upsert({

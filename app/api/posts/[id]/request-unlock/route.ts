@@ -31,9 +31,23 @@ export async function POST(
       return NextResponse.json({ error: 'No valid authorized emails found for this egg.' }, { status: 400 });
     }
     
-    // 3. Generate tokens and send
+    // 3. Fetch existing participants to check for the 5-minute grace period
+    const { data: existingParticipants } = await supabaseAdmin
+      .from('egg_participants')
+      .select('email, is_verified, verified_at')
+      .eq('post_id', eggId);
+
+    // 4. Generate tokens and send
     const results = await Promise.all(authorizedEmails.map(async (email: string) => {
       try {
+        const existing = (existingParticipants || []).find(p => p.email.toLowerCase() === email.toLowerCase());
+        
+        // 5-minute grace period: If already verified in the last 5 minutes, skip resetting/resending
+        const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+        if (existing?.is_verified && existing.verified_at && new Date(existing.verified_at) > fiveMinsAgo) {
+          return { email, success: true, skipped: true };
+        }
+
         // Use a simple random string instead of the crypto library to avoid environment issues
         const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         
