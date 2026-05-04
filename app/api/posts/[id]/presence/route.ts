@@ -9,6 +9,8 @@ export async function POST(
     const { email } = await request.json();
     const eggId = params.id;
 
+    console.log(`--- PRESENCE HEARTBEAT: egg=${eggId}, email=${email} ---`);
+
     if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
     const { error } = await supabaseAdmin

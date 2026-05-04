@@ -49,11 +49,20 @@ export async function GET(
         .eq('post_id', id);
 
       const now = new Date();
-      const processedParticipants = (participants || []).map(p => ({
-        email: p.email,
-        is_verified: p.is_verified,
-        is_active: p.last_active ? (now.getTime() - new Date(p.last_active).getTime() < 20000) : false
-      }));
+      const processedParticipants = (participants || []).map(p => {
+        const lastActiveDate = p.last_active ? new Date(p.last_active) : null;
+        const diff = lastActiveDate ? Math.abs(now.getTime() - lastActiveDate.getTime()) : Infinity;
+        const isActive = diff < 30000; // 30 second threshold
+
+        return {
+          email: p.email,
+          is_verified: p.is_verified,
+          is_active: isActive
+        };
+      });
+
+      console.log(`--- PARTICIPANTS FOR ${id} ---`);
+      processedParticipants.forEach(p => console.log(`  - ${p.email}: verified=${p.is_verified}, active=${p.is_active}`));
 
       return NextResponse.json({ ...post, participants: processedParticipants });
     }

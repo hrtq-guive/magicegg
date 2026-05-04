@@ -45,6 +45,25 @@ function EggContent({ params }: { params: { id: string } }) {
   const [allParticipantsReady, setAllParticipantsReady] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   
+  // Persist resend countdown
+  useEffect(() => {
+    const saved = localStorage.getItem(`egg_${params.id}_resend_target`);
+    if (saved) {
+      const target = parseInt(saved);
+      const remaining = Math.ceil((target - Date.now()) / 1000);
+      if (remaining > 0) setResendCountdown(remaining);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const target = Date.now() + resendCountdown * 1000;
+      localStorage.setItem(`egg_${params.id}_resend_target`, target.toString());
+    } else {
+      localStorage.removeItem(`egg_${params.id}_resend_target`);
+    }
+  }, [resendCountdown, params.id]);
+  
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
   const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -264,6 +283,7 @@ function EggContent({ params }: { params: { id: string } }) {
       
       setLinkSent(true);
       setResendCountdown(60);
+      localStorage.setItem(`egg_${params.id}_resend_target`, (Date.now() + 60000).toString());
     } catch (err: any) {
       setRequestError(err.message);
       setShakePrompt(true);
