@@ -85,11 +85,11 @@ function EggContent({ params }: { params: { id: string } }) {
       const data: Post = await res.json();
       setPost(data);
       
-      // Check if all are ready
+      // Check if all are ready (all participants must be verified)
       if (data.unlock_type === 'simultaneous' && data.participants && data.participants.length > 0) {
         const required = data.unlock_value?.split(',').length || 0;
-        const currentReady = data.participants.filter(p => p.is_verified && p.is_active).length;
-        setAllParticipantsReady(currentReady === required && required > 0);
+        const currentVerified = data.participants.filter(p => p.is_verified).length;
+        setAllParticipantsReady(currentVerified === required && required > 0);
       } else {
         setAllParticipantsReady(false);
       }
@@ -137,32 +137,7 @@ function EggContent({ params }: { params: { id: string } }) {
     return () => { if (pollInterval.current) clearInterval(pollInterval.current); };
   }, [post?.unlock_type, showText]);
 
-  // Heartbeat for simultaneous
-  useEffect(() => {
-    if (post?.unlock_type === 'simultaneous' && userEmail && userToken && !showText) {
-      console.log('--- STARTING HEARTBEAT INTERVAL ---', { userEmail, userToken });
-      const sendHeartbeat = () => {
-        console.log('--- SENDING HEARTBEAT ---');
-        fetch(`/api/posts/${params.id}/presence`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userEmail, token: userToken })
-        })
-        .then(res => {
-          if (!res.ok) console.error('Heartbeat failed with status:', res.status);
-          return res.json();
-        })
-        .then(data => console.log('Heartbeat response:', data))
-        .catch(err => console.error('Heartbeat fetch error:', err));
-      };
-
-      sendHeartbeat(); // Initial
-      heartbeatInterval.current = setInterval(sendHeartbeat, 5000); // Every 5s
-    } else {
-      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
-    }
-    return () => { if (heartbeatInterval.current) clearInterval(heartbeatInterval.current); };
-  }, [post?.unlock_type, userEmail, userToken, showText]);
+  // Heartbeat removed (switched to verification-only model)
   
   // Timer for resend countdown
   useEffect(() => {
@@ -393,13 +368,13 @@ function EggContent({ params }: { params: { id: string } }) {
                         <div key={i} className="flex items-center gap-1.5" title={`${p.email} (${p.is_verified ? 'Verified' : 'Unverified'})`}>
                           <Circle 
                             size={8} 
-                            fill={p.is_active ? '#22c55e' : p.is_verified ? '#3b82f6' : '#ef4444'} 
-                            className={p.is_active ? 'text-green-500' : p.is_verified ? 'text-blue-500' : 'text-red-500'} 
+                            fill={p.is_verified ? '#22c55e' : '#ef4444'} 
+                            className={p.is_verified ? 'text-green-500' : 'text-red-500'} 
                           />
                         </div>
                       ))}
                     </div>
-                    <span className="text-black/25 text-[10px] mt-2 font-mono">{activeCount} / {totalCount} ACTIVE</span>
+                    <span className="text-black/25 text-[10px] mt-2 font-mono">{post.participants?.filter(p => p.is_verified).length || 0} / {totalCount} KEYS</span>
                   </div>
                   {(linkSent && !userEmail) && (
                     <span className="text-black/30 text-[9px] uppercase tracking-widest mt-2 animate-pulse">Check your inbox</span>

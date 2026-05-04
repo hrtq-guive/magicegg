@@ -9,8 +9,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const id = params.id;
-  const nowTime = new Date().toISOString();
-  console.log(`--- GET /api/posts/${id} started at ${nowTime} ---`);
 
   try {
     const { data: post, error } = await supabase
@@ -47,60 +45,24 @@ export async function GET(
     if (post.unlock_type === 'simultaneous') {
       const { data: participants, error: pError } = await supabaseAdmin
         .from('egg_participants')
-        .select('email, is_verified, last_active')
+        .select('email, is_verified')
         .eq('post_id', post.id);
-
-      if (pError) {
-        console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${id}:`, pError);
-      } else {
-        console.log(`--- FETCHED ${participants?.length || 0} PARTICIPANTS FOR ${id} ---`);
-      }
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
         .map((e: string) => e.trim().toLowerCase())
         .filter((e: string) => e.length > 0 && e.includes('@'));
 
-      const now = new Date();
-      
       // Map authorized emails to their participant record or a default one
       const processedParticipants = authorizedEmails.map((email: string) => {
         const p = (participants || []).find((record: any) => record.email.toLowerCase() === email);
         
-        if (p) {
-          // Robust date parsing
-          const lastActiveStr = p.last_active;
-          const lastActiveDate = lastActiveStr ? new Date(lastActiveStr) : null;
-          const nowMs = Date.now();
-          const lastActiveMs = lastActiveDate ? lastActiveDate.getTime() : 0;
-          
-          // Calculate difference in seconds (positive means past, negative means future)
-          const diffSeconds = (nowMs - lastActiveMs) / 1000;
-          
-          // ACTIVE if:
-          // 1. It happened in the last 5 minutes (diffSeconds < 300)
-          // 2. OR it happened in the "future" (diffSeconds < 0) due to clock drift
-          const isActive = diffSeconds < 300; 
-
-          console.log(`[DEBUG] ${email}: diff=${diffSeconds}s (negative means future), rawDB="${lastActiveStr}", now=${new Date(nowMs).toISOString()}, active=${isActive}`);
-
-          return {
-            email: p.email,
-            is_verified: p.is_verified,
-            is_active: isActive,
-            debug_diff: diffSeconds
-          };
-        } else {
-          return {
-            email: email,
-            is_verified: false,
-            is_active: false
-          };
-        }
+        return {
+          email: email,
+          is_verified: p ? p.is_verified : false,
+          is_active: false // Legacy field, no longer used
+        };
       });
-
-      console.log(`--- PARTICIPANTS FOR ${id} ---`);
-      processedParticipants.forEach((p: any) => console.log(`  - ${p.email}: verified=${p.is_verified}, active=${p.is_active}`));
 
       return NextResponse.json({ ...post, participants: processedParticipants });
     }
