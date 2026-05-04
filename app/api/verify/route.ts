@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = decodeURIComponent(searchParams.get('token') ?? '').trim();
-  const eggId = searchParams.get('id') ?? '';
+  const eggId = (searchParams.get('id') ?? '').trim();
 
   if (!token || !eggId) return NextResponse.json({ error: 'Invalid link' }, { status: 400 });
 

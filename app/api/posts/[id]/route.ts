@@ -7,7 +7,7 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const id = params.id;
+  const id = params.id.trim();
 
   // Rule Out post_id Encoding Issue (Fix 4)
   console.log('post_id raw:', JSON.stringify(id));
