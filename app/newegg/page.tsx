@@ -28,7 +28,6 @@ export default function NewEggPage() {
   const [unlockType, setUnlockType] = useState<string | null>(null);
   const [unlockValue, setUnlockValue] = useState('');
   const [unlockHint, setUnlockHint] = useState('');
-  const [customId, setCustomId] = useState('');
   const [idError, setIdError] = useState('');
   const [finalUrl, setFinalUrl] = useState('');
   const [copied, setCopied] = useState(false);
@@ -76,7 +75,7 @@ export default function NewEggPage() {
     setSubmitError('');
     setIsSubmitting(true);
     
-    console.log('Starting egg creation...', { content, unlockType, unlockValue, customId });
+    console.log('Starting egg creation...', { content, unlockType, unlockValue });
 
     // Phase 1: Egg appears open in center
     setFlow('locking');
@@ -111,7 +110,6 @@ export default function NewEggPage() {
           unlockType,
           unlockValue: unlockValue.trim(),
           unlockHint: unlockHint.trim(),
-          customId: customId.trim(),
           files: uploadedFilePaths,
         }),
       });
@@ -132,7 +130,7 @@ export default function NewEggPage() {
       }
 
       const data = await res.json();
-      const id = data.id || customId.trim() || 'your-egg';
+      const id = data.id || 'your-egg';
       const origin = typeof window !== 'undefined' ? window.location.origin : 'magicegg.heretique.fr';
       setFinalUrl(`${origin.replace('https://', '').replace('http://', '')}/${id}`);
 
@@ -176,7 +174,7 @@ export default function NewEggPage() {
     setUnlockType(null);
     setUnlockValue('');
     setUnlockHint('');
-    setCustomId('');
+    setUnlockHint('');
     setIdError('');
     setFinalUrl('');
     setCopied(false);

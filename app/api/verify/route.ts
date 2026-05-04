@@ -41,6 +41,12 @@ export async function GET(request: Request) {
       if (data?.is_verified) {
         participant = data;
         console.log(`--- ALREADY VERIFIED: egg=${eggId}, email=${emailParam} ---`);
+        
+        // Update last_active even if already verified
+        await supabaseAdmin
+          .from('egg_participants')
+          .update({ last_active: new Date().toISOString() })
+          .eq('id', data.id);
       }
     }
 
@@ -55,7 +61,8 @@ export async function GET(request: Request) {
         .from('egg_participants')
         .update({
           is_verified: true,
-          verified_at: new Date().toISOString()
+          verified_at: new Date().toISOString(),
+          last_active: new Date().toISOString()
           // NOTE: We no longer clear the token; it acts as a session key
         })
         .eq('id', participant.id);

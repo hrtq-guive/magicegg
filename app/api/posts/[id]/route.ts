@@ -48,17 +48,34 @@ export async function GET(
         .select('email, is_verified, last_active')
         .eq('post_id', id);
 
-      const now = new Date();
-      const processedParticipants = (participants || []).map(p => {
-        const lastActiveDate = p.last_active ? new Date(p.last_active) : null;
-        const diff = lastActiveDate ? Math.abs(now.getTime() - lastActiveDate.getTime()) : Infinity;
-        const isActive = diff < 30000; // 30 second threshold
+      const authorizedEmails = (post.unlock_value || '')
+        .split(',')
+        .map((e: string) => e.trim().toLowerCase())
+        .filter((e: string) => e.length > 0 && e.includes('@'));
 
-        return {
-          email: p.email,
-          is_verified: p.is_verified,
-          is_active: isActive
-        };
+      const now = new Date();
+      
+      // Map authorized emails to their participant record or a default one
+      const processedParticipants = authorizedEmails.map(email => {
+        const p = (participants || []).find(record => record.email.toLowerCase() === email);
+        
+        if (p) {
+          const lastActiveDate = p.last_active ? new Date(p.last_active) : null;
+          const diff = lastActiveDate ? Math.abs(now.getTime() - lastActiveDate.getTime()) : Infinity;
+          const isActive = diff < 30000; // 30 second threshold
+
+          return {
+            email: p.email,
+            is_verified: p.is_verified,
+            is_active: isActive
+          };
+        } else {
+          return {
+            email: email,
+            is_verified: false,
+            is_active: false
+          };
+        }
       });
 
       console.log(`--- PARTICIPANTS FOR ${id} ---`);

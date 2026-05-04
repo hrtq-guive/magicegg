@@ -331,7 +331,7 @@ function EggContent({ params }: { params: { id: string } }) {
   }
 
   const activeCount = post.participants?.filter(p => p.is_verified && p.is_active).length || 0;
-  const totalCount = post.unlock_type === 'simultaneous' ? post.unlock_value?.split(',').length || 0 : 0;
+  const totalCount = post.unlock_type === 'simultaneous' ? (post.participants?.length || post.unlock_value?.split(',').filter(e => e.includes('@')).length || 0) : 0;
 
   return (
     <div className="h-[100dvh] w-full flex relative overflow-hidden bg-[#f0f0f4] text-[#111111]">
@@ -358,45 +358,44 @@ function EggContent({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          {post.unlock_type === 'simultaneous' && showPrompt && !showText && phase === 'idle' && (
+          {post.unlock_type === 'simultaneous' && !showText && phase === 'idle' && (
             <div className="absolute inset-x-0 bottom-4 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
               <div className="flex flex-col items-center gap-6 pointer-events-auto animate-in fade-in duration-500">
-                {post.unlock_type === 'simultaneous' && !allParticipantsReady && (
+                {!allParticipantsReady && (
                   <button
                     onClick={handleBulkRequestLink}
                     disabled={isRequestingLink || resendCountdown > 0}
-                    className={`${linkSent || userEmail ? 'text-[9px] tracking-[0.2em] uppercase text-black/40 hover:text-black/80' : 'px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white'} transition-all duration-300 disabled:opacity-50`}
+                    className={`${linkSent || userEmail || showPrompt ? 'text-[9px] tracking-[0.2em] uppercase text-black/40 hover:text-black/80' : 'px-8 py-3 rounded-full border border-black/15 text-[10px] tracking-[0.3em] uppercase hover:bg-black hover:text-white'} transition-all duration-300 disabled:opacity-50`}
                   >
                     {isRequestingLink ? 'Sending Keys...' : 
                      resendCountdown > 0 ? `Resend Key in ${resendCountdown}s` : 
-                     (linkSent || userEmail) ? 'Resend Key' : 'Receive Key'}
+                     (linkSent || userEmail || showPrompt) ? 'Resend Key' : 'Receive Key'}
                   </button>
                 )}
                 
-                {(linkSent || userEmail) && (
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="flex flex-col items-center gap-2">
-                      <span className="text-black/60 text-[10px] tracking-[0.2em] uppercase">
-                        {allParticipantsReady ? 'Ready. Click the egg.' : 'Waiting...'}
-                      </span>
-                      <div className="flex items-center gap-3 mt-2">
-                        {post.participants?.map((p, i) => (
-                          <div key={i} className="flex items-center gap-1.5" title={`${p.email} (${p.is_verified ? 'Verified' : 'Unverified'})`}>
-                            <Circle 
-                              size={8} 
-                              fill={p.is_active ? '#22c55e' : p.is_verified ? '#3b82f6' : '#ef4444'} 
-                              className={p.is_active ? 'text-green-500' : p.is_verified ? 'text-blue-500' : 'text-red-500'} 
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <span className="text-black/25 text-[10px] mt-2 font-mono">{activeCount} / {totalCount} ACTIVE</span>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-black/60 text-[10px] tracking-[0.2em] uppercase">
+                      {allParticipantsReady ? 'Ready. Click the egg.' : 'Waiting...'}
+                    </span>
+                    <div className="flex items-center gap-3 mt-2">
+                      {post.participants?.map((p, i) => (
+                        <div key={i} className="flex items-center gap-1.5" title={`${p.email} (${p.is_verified ? 'Verified' : 'Unverified'})`}>
+                          <Circle 
+                            size={8} 
+                            fill={p.is_active ? '#22c55e' : p.is_verified ? '#3b82f6' : '#ef4444'} 
+                            className={p.is_active ? 'text-green-500' : p.is_verified ? 'text-blue-500' : 'text-red-500'} 
+                          />
+                        </div>
+                      ))}
                     </div>
-                      {!userEmail && (
-                        <span className="text-black/30 text-[9px] uppercase tracking-widest mt-2 animate-pulse">Check your inbox</span>
-                      )}
+                    <span className="text-black/25 text-[10px] mt-2 font-mono">{activeCount} / {totalCount} ACTIVE</span>
                   </div>
-                )}
+                  {(linkSent && !userEmail) && (
+                    <span className="text-black/30 text-[9px] uppercase tracking-widest mt-2 animate-pulse">Check your inbox</span>
+                  )}
+                </div>
+
                 {requestError && <span className="text-red-400 text-xs mt-2">{requestError}</span>}
               </div>
             </div>

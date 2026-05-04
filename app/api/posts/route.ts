@@ -6,37 +6,23 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const { content, unlockType, unlockValue, unlockHint, customId, files } = await request.json();
+    const { content, unlockType, unlockValue, unlockHint, files } = await request.json();
     
     if (typeof content !== 'string') {
       return NextResponse.json({ error: 'Content must be a string' }, { status: 400 });
     }
 
-    let finalId = customId ? customId.trim() : '';
-    
-    // Check for uniqueness if customId is provided
-    if (finalId) {
+    // Generate a 6-character random alphanumeric ID
+    let finalId = '';
+    let isUnique = false;
+    while (!isUnique) {
+      finalId = Math.random().toString(36).substring(2, 8);
       const { data: existing } = await supabaseAdmin
         .from('posts')
         .select('id')
         .eq('id', finalId)
         .single();
-      
-      if (existing) {
-        return NextResponse.json({ error: 'ID already exists' }, { status: 409 });
-      }
-    } else {
-      // Generate a 6-character random alphanumeric ID
-      let isUnique = false;
-      while (!isUnique) {
-        finalId = Math.random().toString(36).substring(2, 8);
-        const { data: existing } = await supabaseAdmin
-          .from('posts')
-          .select('id')
-          .eq('id', finalId)
-          .single();
-        if (!existing) isUnique = true;
-      }
+      if (!existing) isUnique = true;
     }
     
     const newPost = {
