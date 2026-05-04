@@ -308,24 +308,8 @@ export default function NewEggPage() {
               </div>
             </div>
 
-            {/* Custom URL */}
-            <div className="flex flex-col gap-4">
-              <span className="params-label">Custom URL <span className="opacity-40 normal-case tracking-normal font-normal text-sm">— optional</span></span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-black/25 text-2xl leading-none select-none">
-                  {typeof window !== 'undefined' ? window.location.host + '/' : 'magicegg.heretique.fr/'}
-                </span>
-                <input
-                  type="text"
-                  value={customId}
-                  onChange={(e) => { setCustomId(e.target.value.replace(/[^a-zA-Z0-9-]/g, '')); setIdError(''); }}
-                  placeholder="your-slug"
-                  className="params-input flex-1"
-                />
-              </div>
-              {idError && <span className="text-red-400 text-sm">{idError}</span>}
-              {submitError && <span className="text-red-400 text-sm text-center mt-2">{submitError}</span>}
-            </div>
+            {/* Removed Custom URL section */}
+            {submitError && <span className="text-red-400 text-sm text-center mt-2">{submitError}</span>}
 
             {/* Content area is now top-aligned, no more central egg here */}
           </div>

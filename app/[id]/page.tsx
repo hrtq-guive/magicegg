@@ -359,7 +359,7 @@ function EggContent({ params }: { params: { id: string } }) {
           </div>
 
           {post.unlock_type === 'simultaneous' && showPrompt && !showText && phase === 'idle' && (
-            <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
+            <div className="absolute inset-x-0 bottom-4 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
               <div className="flex flex-col items-center gap-6 pointer-events-auto animate-in fade-in duration-500">
                 {post.unlock_type === 'simultaneous' && !allParticipantsReady && (
                   <button
@@ -377,7 +377,7 @@ function EggContent({ params }: { params: { id: string } }) {
                   <div className="flex flex-col items-center gap-4">
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-black/60 text-[10px] tracking-[0.2em] uppercase">
-                        {allParticipantsReady ? 'Everyone is here. Click the egg.' : 'Waiting for participants…'}
+                        {allParticipantsReady ? 'Ready. Click the egg.' : 'Waiting...'}
                       </span>
                       <div className="flex items-center gap-3 mt-2">
                         {post.participants?.map((p, i) => (
@@ -403,7 +403,7 @@ function EggContent({ params }: { params: { id: string } }) {
           )}
 
           {showPrompt && !showText && post.unlock_type !== 'simultaneous' && (
-            <div className="absolute inset-x-0 bottom-24 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
+            <div className="absolute inset-x-0 bottom-4 md:bottom-auto md:top-1/2 md:pt-64 flex items-center justify-center pointer-events-none px-6">
               <div className={`flex flex-col items-center pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-500 ${shakePrompt ? 'egg-shake' : ''}`}>
                 
                 {post.unlock_hint && (
@@ -456,11 +456,11 @@ function EggContent({ params }: { params: { id: string } }) {
                   <div className="flex flex-col items-center gap-4">
                     <div className="flex items-center gap-2 text-black/40">
                       <MapPin size={16} strokeWidth={1.5} />
-                      <span className="text-[10px] tracking-[0.2em] uppercase">Location Based Lock</span>
+                      <span className="text-[10px] tracking-[0.2em] uppercase">Location Lock</span>
                     </div>
                     
                     <div className="text-center max-w-xs">
-                      <p className="text-black/60 text-sm font-elegant">You must be within 100m of the target to unlock this egg.</p>
+                      <p className="text-black/60 text-[11px] font-elegant">Be within 100m of the target to unlock.</p>
                     </div>
 
                     {locationError && (
