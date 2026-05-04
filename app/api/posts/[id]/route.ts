@@ -56,8 +56,8 @@ export async function GET(
       const now = new Date();
       
       // Map authorized emails to their participant record or a default one
-      const processedParticipants = authorizedEmails.map(email => {
-        const p = (participants || []).find(record => record.email.toLowerCase() === email);
+      const processedParticipants = authorizedEmails.map((email: string) => {
+        const p = (participants || []).find((record: any) => record.email.toLowerCase() === email);
         
         if (p) {
           const lastActiveDate = p.last_active ? new Date(p.last_active) : null;
