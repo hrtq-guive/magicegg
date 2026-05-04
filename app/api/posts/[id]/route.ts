@@ -7,15 +7,13 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Trim the ID from the URL to be safe
   const id = params.id.trim();
 
   try {
-    // 1. Fetch the egg AND its participants in ONE JOIN QUERY
-    // This is much more robust than two separate queries.
+    // 1. Fetch the egg post
     const { data: post, error } = await supabaseAdmin
       .from('posts')
-      .select('*, egg_participants(email, is_verified)')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -32,12 +30,20 @@ export async function GET(
       if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
     }
 
-    // 3. Simultaneous logic
+    // 3. Simultaneous logic - INDEPENDENT FETCH
     if (post.unlock_type === 'simultaneous') {
-      // Use the participants returned from the join
-      const dbParticipants = (post.egg_participants || []) as any[];
-      
-      console.log(`--- POLLING EGG: ${id}. Found ${dbParticipants.length} participants in Join Query ---`);
+      // We fetch participants by post_id string directly, avoiding broken Foreign Key joins
+      const { data: participants, error: pError } = await supabaseAdmin
+        .from('egg_participants')
+        .select('email, is_verified')
+        .eq('post_id', id);
+
+      if (pError) {
+        console.error(`--- ERROR FETCHING PARTICIPANTS FOR ${id}:`, pError);
+      }
+
+      const dbParticipants = participants || [];
+      console.log(`--- POLLING EGG: ${id}. Found ${dbParticipants.length} participants via Direct Query ---`);
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
@@ -54,11 +60,7 @@ export async function GET(
         };
       });
 
-      // Clean up the response to avoid nested data
-      const responsePost = { ...post };
-      delete responsePost.egg_participants;
-
-      return NextResponse.json({ ...responsePost, participants: processedParticipants });
+      return NextResponse.json({ ...post, participants: processedParticipants });
     }
 
     return NextResponse.json(post);
