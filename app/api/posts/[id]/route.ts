@@ -15,10 +15,11 @@ export async function GET(
   console.log('post_id charCodes:', id.split('').map(c => c.charCodeAt(0)));
 
   try {
-    // 1. Fetch the egg
+    // 1. Fetch the egg and its participants in ONE single joined query
+    // This is much more robust than two separate queries
     const { data: post, error: postError } = await supabaseAdmin
       .from('posts')
-      .select('*')
+      .select('*, egg_participants(email, is_verified, last_active)')
       .eq('id', id)
       .single();
 
@@ -26,14 +27,12 @@ export async function GET(
       return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
     }
 
-    // 2. Define strict CDN-killing headers (Fix 1)
+    // 2. Define strict headers to kill any potential caching
     const headers = {
-      'CDN-Cache-Control': 'no-store',
-      'Netlify-CDN-Cache-Control': 'no-store',
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Surrogate-Control': 'no-store',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
+      'Surrogate-Control': 'no-store',
     };
 
     // 3. Handle files (signed URLs)
@@ -44,29 +43,17 @@ export async function GET(
       if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
     }
 
-    // 4. For Simultaneous eggs, fetch their keys/participants
+    // 4. For Simultaneous eggs, format the participants
     if (post.unlock_type === 'simultaneous') {
-      const { data: participants_data } = await supabaseAdmin
-        .from('egg_participants')
-        .select('email, is_verified, last_active')
-        .eq('post_id', id);
-
-      // Force headers to be even more aggressive (Fix for Netlify caching)
-      const headers = {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store',
-        'X-Response-Time': new Date().toISOString()
-      };
-
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
         .map((e: string) => e.trim().toLowerCase())
         .filter((e: string) => e.length > 0 && e.includes('@'));
 
+      const participants_data = post.egg_participants || [];
+
       const participants = authorizedEmails.map((email: string) => {
-        const p = (participants_data || []).find(p => p.email.toLowerCase() === email);
+        const p = participants_data.find((p: any) => p.email.toLowerCase() === email);
         const is_active = p && p.last_active ? (Date.now() - new Date(p.last_active).getTime() < 15000) : false;
         
         return {
@@ -76,6 +63,8 @@ export async function GET(
         };
       });
 
+      // Remove the raw joined data before sending to client
+      delete post.egg_participants;
       return NextResponse.json({ ...post, participants }, { headers });
     }
 
