@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -8,13 +7,15 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const id = params.id;
+  // Trim the ID from the URL to be safe
+  const id = params.id.trim();
 
   try {
-    // 1. Fetch the egg using Admin client to be safe
+    // 1. Fetch the egg AND its participants in ONE JOIN QUERY
+    // This is much more robust than two separate queries.
     const { data: post, error } = await supabaseAdmin
       .from('posts')
-      .select('*')
+      .select('*, egg_participants(email, is_verified)')
       .eq('id', id)
       .single();
 
@@ -33,18 +34,10 @@ export async function GET(
 
     // 3. Simultaneous logic
     if (post.unlock_type === 'simultaneous') {
-      console.log(`--- POLLING EGG: ${id} (Internal ID: ${post.id}) ---`);
+      // Use the participants returned from the join
+      const dbParticipants = (post.egg_participants || []) as any[];
       
-      const { data: participants, error: pError } = await supabaseAdmin
-        .from('egg_participants')
-        .select('email, is_verified')
-        .eq('post_id', post.id);
-
-      if (pError) {
-        console.error(`--- ERROR FETCHING PARTICIPANTS:`, pError);
-      }
-
-      console.log(`--- DB RAW PARTICIPANTS for ${id}:`, JSON.stringify(participants));
+      console.log(`--- POLLING EGG: ${id}. Found ${dbParticipants.length} participants in Join Query ---`);
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
@@ -52,19 +45,20 @@ export async function GET(
         .filter((e: string) => e.length > 0 && e.includes('@'));
 
       const processedParticipants = authorizedEmails.map((email: string) => {
-        const p = (participants || []).find((record: any) => record.email.toLowerCase() === email);
+        const p = dbParticipants.find(record => record.email.toLowerCase() === email);
         
-        const status = {
+        return {
           email: email,
           is_verified: p ? p.is_verified : false,
           is_active: false
         };
-        
-        console.log(`--- STATUS for ${email}: verified=${status.is_verified} (Found in DB: ${!!p}) ---`);
-        return status;
       });
 
-      return NextResponse.json({ ...post, participants: processedParticipants });
+      // Clean up the response to avoid nested data
+      const responsePost = { ...post };
+      delete responsePost.egg_participants;
+
+      return NextResponse.json({ ...responsePost, participants: processedParticipants });
     }
 
     return NextResponse.json(post);
