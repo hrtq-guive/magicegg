@@ -9,14 +9,23 @@ export async function POST(request: Request) {
   
   if (!id) return NextResponse.json({ error: 'No ID' }, { status: 400 });
 
+  console.log(`--- UNLOCK REQUEST FOR EGG: ${id} ---`);
+
   try {
-    const { data: egg, error: eggError } = await supabase.from('posts').select('unlock_value').eq('id', id).single();
-    if (eggError || !egg) return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
+    const { data: egg, error: eggError } = await supabaseAdmin.from('posts').select('unlock_value').eq('id', id).single();
+    if (eggError || !egg) {
+      console.error(`--- EGG NOT FOUND: ${id} ---`, eggError);
+      return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
+    }
 
     const emails = egg.unlock_value.split(',').map((e: string) => e.trim().toLowerCase()).filter((e: string) => e.includes('@'));
+    console.log(`--- SENDING TO ${emails.length} EMAILS: ${emails.join(', ')} ---`);
 
     const results = await Promise.all(emails.map(async (email: string) => {
       const token = Math.random().toString(36).substring(2, 15);
+      
+      console.log(`--- SAVING PARTICIPANT: egg=${id}, email=${email}, token=${token} ---`);
+      
       const { error: upsertError } = await supabaseAdmin.from('egg_participants').upsert({
         post_id: id,
         email: email,
@@ -26,11 +35,11 @@ export async function POST(request: Request) {
       }, { onConflict: 'post_id,email' });
 
       if (upsertError) {
-        console.error(`--- DB ERROR SAVING PARTICIPANT ${email} for egg ${id}:`, upsertError);
-      } else {
-        console.log(`--- DB SUCCESS: Saved participant ${email} for egg ${id} ---`);
+        console.error(`--- DB ERROR SAVING PARTICIPANT ${email}:`, upsertError);
+        return { email, success: false, error: upsertError };
       }
 
+      console.log(`--- DB SUCCESS: Saved ${email}. Sending email... ---`);
       const { success, error } = await sendMagicLink(email, id, token);
 
       return { email, success, error };
@@ -38,13 +47,14 @@ export async function POST(request: Request) {
 
     const failed = results.filter(r => !r.success);
     if (failed.length > 0) {
-      // Return the specific error from Resend
+      console.error(`--- UNLOCK PROCESS FAILED FOR ${failed.length} PARTICIPANTS ---`);
       const errorMsg = failed[0].error?.message || JSON.stringify(failed[0].error);
-      return NextResponse.json({ error: `Resend Error: ${errorMsg}` }, { status: 500 });
+      return NextResponse.json({ error: `Process Error: ${errorMsg}` }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'Success', count: results.length });
   } catch (err: any) {
+    console.error(`--- UNEXPECTED UNLOCK ERROR:`, err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
