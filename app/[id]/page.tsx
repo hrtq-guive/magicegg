@@ -152,7 +152,7 @@ function EggContent({ params }: { params: { id: string } }) {
       if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
     }
     return () => { if (heartbeatInterval.current) clearInterval(heartbeatInterval.current); };
-  }, [post?.unlock_type, userEmail, showText]);
+  }, [post?.unlock_type, userEmail, userToken, showText]);
   
   // Timer for resend countdown
   useEffect(() => {
