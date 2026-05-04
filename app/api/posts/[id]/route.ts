@@ -11,57 +11,57 @@ export async function GET(
   const id = params.id;
 
   try {
-    const { data: post, error } = await supabase
+    // 1. Fetch the egg using Admin client to be safe
+    const { data: post, error } = await supabaseAdmin
       .from('posts')
       .select('*')
       .eq('id', id)
       .single();
 
     if (error || !post) {
+      console.error(`--- EGG NOT FOUND: ${id} ---`, error);
       return NextResponse.json({ error: 'Egg not found' }, { status: 404 });
     }
 
-    // Generate signed URLs for private files
+    // 2. Handle files (signed URLs)
     if (post.files && Array.isArray(post.files) && post.files.length > 0) {
-      const { data: signedUrls, error: signedError } = await supabaseAdmin.storage
+      const { data: signedUrls } = await supabaseAdmin.storage
         .from('egg-contents')
-        .createSignedUrls(post.files, 3600); // 1 hour
-      
-      if (!signedError && signedUrls) {
-        post.files = signedUrls.map(s => s.signedUrl);
-      }
-    } else if (typeof post.files === 'string' && post.files.startsWith('[')) {
-      // Handle stringified array if necessary
-      const filePaths = JSON.parse(post.files);
-      const { data: signedUrls, error: signedError } = await supabaseAdmin.storage
-        .from('egg-contents')
-        .createSignedUrls(filePaths, 3600);
-      
-      if (!signedError && signedUrls) {
-        post.files = signedUrls.map(s => s.signedUrl);
-      }
+        .createSignedUrls(post.files, 3600);
+      if (signedUrls) post.files = signedUrls.map(s => s.signedUrl);
     }
 
+    // 3. Simultaneous logic
     if (post.unlock_type === 'simultaneous') {
+      console.log(`--- POLLING EGG: ${id} (Internal ID: ${post.id}) ---`);
+      
       const { data: participants, error: pError } = await supabaseAdmin
         .from('egg_participants')
         .select('email, is_verified')
         .eq('post_id', post.id);
+
+      if (pError) {
+        console.error(`--- ERROR FETCHING PARTICIPANTS:`, pError);
+      }
+
+      console.log(`--- DB RAW PARTICIPANTS for ${id}:`, JSON.stringify(participants));
 
       const authorizedEmails = (post.unlock_value || '')
         .split(',')
         .map((e: string) => e.trim().toLowerCase())
         .filter((e: string) => e.length > 0 && e.includes('@'));
 
-      // Map authorized emails to their participant record or a default one
       const processedParticipants = authorizedEmails.map((email: string) => {
         const p = (participants || []).find((record: any) => record.email.toLowerCase() === email);
         
-        return {
+        const status = {
           email: email,
           is_verified: p ? p.is_verified : false,
-          is_active: false // Legacy field, no longer used
+          is_active: false
         };
+        
+        console.log(`--- STATUS for ${email}: verified=${status.is_verified} (Found in DB: ${!!p}) ---`);
+        return status;
       });
 
       return NextResponse.json({ ...post, participants: processedParticipants });
