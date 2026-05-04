@@ -13,12 +13,14 @@ export async function POST(
 
     if (!email || !token) return NextResponse.json({ error: 'Email and token required' }, { status: 400 });
 
-    const { error } = await supabaseAdmin
+    const { error, count } = await supabaseAdmin
       .from('egg_participants')
-      .update({ last_active: new Date().toISOString() })
+      .update({ last_active: new Date().toISOString() }, { count: 'exact' })
       .eq('post_id', eggId)
       .eq('email', email.toLowerCase())
       .eq('token', token);
+
+    console.log(`--- HEARTBEAT RESULT: egg=${eggId}, email=${email}, updated=${count || 0} rows ---`);
 
     if (error) throw error;
     return NextResponse.json({ success: true });
