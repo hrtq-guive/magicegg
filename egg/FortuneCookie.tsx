@@ -11,7 +11,7 @@ interface FortuneCookieProps {
 
 export default function FortuneCookie({ content, isOpened, onOpen, style }: FortuneCookieProps) {
   return (
-    <div 
+    <div
       className={`cookie-container ${isOpened ? 'opened' : ''} preserve-3d`}
       style={style}
       onClick={(e) => {
@@ -23,9 +23,9 @@ export default function FortuneCookie({ content, isOpened, onOpen, style }: Fort
       <div className="cookie-right" />
       <div className="fortune-paper text-black">
         {content.startsWith('http') ? (
-          <a 
-            href={content} 
-            target="_blank" 
+          <a
+            href={content}
+            target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline break-all"
           >
